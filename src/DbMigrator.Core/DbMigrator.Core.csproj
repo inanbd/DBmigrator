@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Engine-neutral schema model, planner and copy engine for DbMigrator.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DbMigrator.Tests" />
+  </ItemGroup>
+
+</Project>

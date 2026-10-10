@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DbMigrator.Cli/DbMigrator.Cli.csproj" />
+    <Project Path="src/DbMigrator.Core/DbMigrator.Core.csproj" />
+    <Project Path="src/DbMigrator.Providers.PostgreSql/DbMigrator.Providers.PostgreSql.csproj" />
+    <Project Path="src/DbMigrator.Providers.SqlServer/DbMigrator.Providers.SqlServer.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DbMigrator.IntegrationTests/DbMigrator.IntegrationTests.csproj" />
+    <Project Path="tests/DbMigrator.Tests/DbMigrator.Tests.csproj" />
+  </Folder>
+</Solution>

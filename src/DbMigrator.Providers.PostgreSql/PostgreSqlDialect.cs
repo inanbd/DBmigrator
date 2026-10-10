@@ -1,0 +1,336 @@
+using System.Globalization;
+using System.Text;
+using DbMigrator.Core.Diagnostics;
+using DbMigrator.Core.Planning;
+using DbMigrator.Core.Providers;
+using DbMigrator.Core.Schema;
+
+namespace DbMigrator.Providers.PostgreSql;
+
+/// <summary>PostgreSQL naming, types and DDL. Every identifier is quoted, so names keep exactly the case the plan gives them.</summary>
+public sealed class PostgreSqlDialect : ISqlDialect
+{
+    /// <summary>PostgreSQL stores fractional seconds to the microsecond.</summary>
+    private const int MaxFractionalSeconds = 6;
+
+    private readonly Version _serverVersion;
+
+    /// <param name="serverVersion">Null when unknown (offline scripting); the newest behaviour is assumed.</param>
+    public PostgreSqlDialect(Version? serverVersion = null)
+    {
+        _serverVersion = serverVersion ?? new Version(18, 0);
+    }
+
+    public string ProviderId => PostgreSqlProvider.ProviderId;
+
+    public string DefaultSchema => "public";
+
+    /// <summary>NAMEDATALEN is 64 bytes including the terminator.</summary>
+    public IdentifierLimit IdentifierLimit { get; } = new(63, CountsUtf8Bytes: true);
+
+    public StringComparer IdentifierComparer => StringComparer.Ordinal;
+
+    public bool SupportsNullsNotDistinct => _serverVersion.Major >= 15;
+
+    public string QuoteIdentifier(string name) => "\"" + name.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
+
+    public string QuoteName(QualifiedName name) => $"{QuoteIdentifier(name.Schema)}.{QuoteIdentifier(name.Name)}";
+
+    public TypeMapping MapType(DataType type) => type.Kind switch
+    {
+        DataTypeKind.Boolean => new(type, "boolean"),
+        // No unsigned types; smallint holds 0–255.
+        DataTypeKind.Byte => new(new DataType(DataTypeKind.Int16), "smallint"),
+        DataTypeKind.Int16 => new(type, "smallint"),
+        DataTypeKind.Int32 => new(type, "integer"),
+        DataTypeKind.Int64 => new(type, "bigint"),
+        DataTypeKind.Decimal => new(type, type.Precision is { } p ? $"numeric({p},{type.Scale ?? 0})" : "numeric"),
+        DataTypeKind.Single => new(type, "real"),
+        DataTypeKind.Double => new(type, "double precision"),
+        DataTypeKind.FixedText => new(type, type.Length is { } n ? $"char({n})" : "text"),
+        DataTypeKind.Text => new(type, type.Length is { } n ? $"varchar({n})" : "text"),
+        DataTypeKind.FixedBinary or DataTypeKind.Binary => new(type, "bytea"),
+        DataTypeKind.Date => new(type, "date"),
+        DataTypeKind.Time => WithFractionalSeconds(type, "time"),
+        DataTypeKind.DateTime => WithFractionalSeconds(type, "timestamp"),
+        DataTypeKind.DateTimeOffset => MapDateTimeOffset(type),
+        DataTypeKind.Guid => new(type, "uuid"),
+        DataTypeKind.Json => new(type, "jsonb"),
+        DataTypeKind.Xml => new(type, "xml"),
+        _ => throw new ArgumentOutOfRangeException(nameof(type), type.Kind, null),
+    };
+
+    public TypeMapping? MapIdentityType(TypeMapping type) => type.Type.Kind switch
+    {
+        DataTypeKind.Int16 or DataTypeKind.Int32 or DataTypeKind.Int64 => type,
+        DataTypeKind.Decimal when (type.Type.Scale ?? 0) == 0 && type.Type.Precision is <= 18 =>
+            new(new DataType(DataTypeKind.Int64), "bigint",
+                new(IssueSeverity.Info, IssueCodes.TypeChanged, $"Identity column of type {type.SqlType} becomes bigint, since identity columns must be integers.")),
+        _ => null,
+    };
+
+    public DefaultRendering RenderDefault(DefaultValue value, DataType columnType) => value switch
+    {
+        DefaultValue.Literal literal => RenderLiteral(literal.Value, columnType),
+        DefaultValue.Function function => RenderFunction(function.Name, columnType),
+        DefaultValue.Expression => DefaultRendering.Unsupported("it is a source SQL expression that needs translating by hand."),
+        _ => DefaultRendering.Unsupported("unknown default kind."),
+    };
+
+    public string CreateSchema(string schema) => $"CREATE SCHEMA IF NOT EXISTS {QuoteIdentifier(schema)}";
+
+    public string DropTable(QualifiedName table) => $"DROP TABLE IF EXISTS {QuoteName(table)} CASCADE";
+
+    public string TruncateTables(IReadOnlyList<QualifiedName> tables) =>
+        // One statement so tables referencing each other can be emptied together. No CASCADE:
+        // emptying tables outside the migration must fail loudly rather than happen silently.
+        $"TRUNCATE TABLE {string.Join(", ", tables.Select(QuoteName))}";
+
+    public string CreateTable(TablePlan table)
+    {
+        var sql = new StringBuilder().Append("CREATE TABLE ").Append(QuoteName(table.Target)).Append(" (");
+        for (var i = 0; i < table.Columns.Count; i++)
+        {
+            var column = table.Columns[i];
+            sql.Append(i == 0 ? "\n    " : ",\n    ").Append(QuoteIdentifier(column.Name)).Append(' ').Append(column.SqlType);
+            if (column.Identity is { } identity)
+            {
+                sql.Append(" GENERATED BY DEFAULT AS IDENTITY (").Append(IdentityOptions(identity)).Append(')');
+            }
+
+            if (column.DefaultSql is { } defaultSql)
+            {
+                sql.Append(" DEFAULT ").Append(defaultSql);
+            }
+
+            if (!column.IsNullable)
+            {
+                sql.Append(" NOT NULL");
+            }
+        }
+
+        return sql.Append("\n)").ToString();
+    }
+
+    public string AddPrimaryKey(TablePlan table)
+    {
+        var pk = table.PrimaryKey ?? throw new ArgumentException($"{table.Target} has no primary key.", nameof(table));
+        return $"ALTER TABLE {QuoteName(table.Target)} ADD CONSTRAINT {QuoteIdentifier(pk.Name)} PRIMARY KEY ({ColumnList(pk.Columns)})";
+    }
+
+    public string CreateIndex(TablePlan table, IndexPlan index)
+    {
+        var nullsNotDistinct = index.IsUnique && !index.NullsAreDistinct && SupportsNullsNotDistinct
+            && index.Columns.Any(c => table.Columns.First(p => p.Name == c.Name).IsNullable);
+        var includes = index.IncludedColumns.Count > 0 ? $" INCLUDE ({ColumnList(index.IncludedColumns)})" : "";
+
+        // A UNIQUE constraint cannot order its columns, so a descending one becomes a unique index.
+        if (index.IsUniqueConstraint && index.Columns.All(c => !c.IsDescending))
+        {
+            return $"ALTER TABLE {QuoteName(table.Target)} ADD CONSTRAINT {QuoteIdentifier(index.Name)} UNIQUE"
+                + (nullsNotDistinct ? " NULLS NOT DISTINCT" : "")
+                + $" ({ColumnList(index.Columns.Select(c => c.Name))}){includes}";
+        }
+
+        var keys = string.Join(", ", index.Columns.Select(c => QuoteIdentifier(c.Name) + (c.IsDescending ? " DESC" : "")));
+        return $"CREATE {(index.IsUnique ? "UNIQUE " : "")}INDEX {QuoteIdentifier(index.Name)} ON {QuoteName(table.Target)} ({keys}){includes}"
+            + (nullsNotDistinct ? " NULLS NOT DISTINCT" : "");
+    }
+
+    public string AddForeignKey(TablePlan table, ForeignKeyPlan foreignKey)
+    {
+        var sql = new StringBuilder()
+            .Append("ALTER TABLE ").Append(QuoteName(table.Target))
+            .Append(" ADD CONSTRAINT ").Append(QuoteIdentifier(foreignKey.Name))
+            .Append(" FOREIGN KEY (").Append(ColumnList(foreignKey.Columns)).Append(')')
+            .Append(" REFERENCES ").Append(QuoteName(foreignKey.ReferencedTable))
+            .Append(" (").Append(ColumnList(foreignKey.ReferencedColumns)).Append(')');
+        if (foreignKey.OnDelete != ReferentialAction.NoAction)
+        {
+            sql.Append(" ON DELETE ").Append(ActionSql(foreignKey.OnDelete));
+        }
+
+        if (foreignKey.OnUpdate != ReferentialAction.NoAction)
+        {
+            sql.Append(" ON UPDATE ").Append(ActionSql(foreignKey.OnUpdate));
+        }
+
+        if (!foreignKey.IsTrusted)
+        {
+            sql.Append(" NOT VALID");
+        }
+
+        return sql.ToString();
+    }
+
+    public string? ResetIdentity(TablePlan table, ColumnPlan column)
+    {
+        var identity = column.Identity ?? throw new ArgumentException($"{column.Name} is not an identity column.", nameof(column));
+        var sequence = $"pg_get_serial_sequence({Literal(QuoteName(table.Target))}, {Literal(column.Name)})";
+        var name = QuoteIdentifier(column.Name);
+        var seed = identity.Seed.ToString(CultureInfo.InvariantCulture);
+        // Continue after the copied values; if none were copied (or all lie on the far side
+        // of the seed), start at the seed as the source would.
+        return identity.Increment >= 0
+            ? $"SELECT setval({sequence}, GREATEST(COALESCE(MAX({name}), {seed}), {seed}), COALESCE(MAX({name}) >= {seed}, false)) FROM {QuoteName(table.Target)}"
+            : $"SELECT setval({sequence}, LEAST(COALESCE(MIN({name}), {seed}), {seed}), COALESCE(MIN({name}) <= {seed}, false)) FROM {QuoteName(table.Target)}";
+    }
+
+    /// <summary>A string literal; standard_conforming_strings (on by default) makes backslashes literal.</summary>
+    public static string Literal(string value) => "'" + value.Replace("'", "''", StringComparison.Ordinal) + "'";
+
+    private static TypeMapping WithFractionalSeconds(DataType type, string sqlName)
+    {
+        if (type.Precision is not { } precision)
+        {
+            return new(type, sqlName);
+        }
+
+        if (precision <= MaxFractionalSeconds)
+        {
+            return new(type, $"{sqlName}({precision})");
+        }
+
+        return new(type with { Precision = MaxFractionalSeconds }, $"{sqlName}({MaxFractionalSeconds})",
+            new(IssueSeverity.Info, IssueCodes.PrecisionReduced,
+                $"Fractional seconds go from {precision} digits to {MaxFractionalSeconds}; the extra digits are dropped."));
+    }
+
+    private static TypeMapping MapDateTimeOffset(DataType type)
+    {
+        var mapping = WithFractionalSeconds(type, "timestamptz");
+        return mapping with
+        {
+            Note = mapping.Note ?? new(IssueSeverity.Warning, IssueCodes.OffsetDropped,
+                "timestamptz stores the instant but not the original UTC offset; values are converted to UTC."),
+        };
+    }
+
+    private static string IdentityOptions(IdentitySpec identity)
+    {
+        var options = $"START WITH {identity.Seed} INCREMENT BY {identity.Increment}";
+        // Sequences default to MINVALUE 1 ascending and MAXVALUE -1 descending; widen them to the seed.
+        if (identity.Increment > 0 && identity.Seed < 1)
+        {
+            options += $" MINVALUE {identity.Seed}";
+        }
+        else if (identity.Increment < 0 && identity.Seed > -1)
+        {
+            options += $" MAXVALUE {identity.Seed}";
+        }
+
+        return options;
+    }
+
+    private string ColumnList(IEnumerable<string> columns) => string.Join(", ", columns.Select(QuoteIdentifier));
+
+    private static string ActionSql(ReferentialAction action) => action switch
+    {
+        ReferentialAction.Cascade => "CASCADE",
+        ReferentialAction.SetNull => "SET NULL",
+        ReferentialAction.SetDefault => "SET DEFAULT",
+        ReferentialAction.Restrict => "RESTRICT",
+        _ => "NO ACTION",
+    };
+
+    private static DefaultRendering RenderFunction(DefaultFunction function, DataType type)
+    {
+        const string utcNow = "(now() AT TIME ZONE 'utc')";
+        var sql = (function, type.Kind) switch
+        {
+            (DefaultFunction.CurrentDateTime or DefaultFunction.CurrentDateTimeOffset, DataTypeKind.DateTime) => "LOCALTIMESTAMP",
+            (DefaultFunction.CurrentDateTime or DefaultFunction.CurrentDateTimeOffset, DataTypeKind.DateTimeOffset) => "CURRENT_TIMESTAMP",
+            (DefaultFunction.CurrentDateTime or DefaultFunction.CurrentDateTimeOffset, DataTypeKind.Date) => "CURRENT_DATE",
+            (DefaultFunction.CurrentDateTime or DefaultFunction.CurrentDateTimeOffset, DataTypeKind.Time) => "LOCALTIME",
+            (DefaultFunction.CurrentUtcDateTime, DataTypeKind.DateTime) => utcNow,
+            (DefaultFunction.CurrentUtcDateTime, DataTypeKind.DateTimeOffset) => "CURRENT_TIMESTAMP",
+            (DefaultFunction.CurrentUtcDateTime or DefaultFunction.CurrentUtcDate, DataTypeKind.Date) => $"({utcNow}::date)",
+            (DefaultFunction.CurrentUtcDateTime, DataTypeKind.Time) => $"({utcNow}::time)",
+            (DefaultFunction.CurrentDate, DataTypeKind.Date or DataTypeKind.DateTime or DataTypeKind.DateTimeOffset) => "CURRENT_DATE",
+            (DefaultFunction.CurrentUtcDate, DataTypeKind.DateTime) => $"({utcNow}::date)",
+            (DefaultFunction.NewGuid, DataTypeKind.Guid) => "gen_random_uuid()",
+            (DefaultFunction.NewGuid, DataTypeKind.Text or DataTypeKind.FixedText) => "(gen_random_uuid()::text)",
+            _ => null,
+        };
+        return sql is null
+            ? DefaultRendering.Unsupported($"{function} has no equivalent for a column of type {type}.")
+            : new DefaultRendering(sql);
+    }
+
+    private static DefaultRendering RenderLiteral(object? value, DataType type)
+    {
+        if (value is null)
+        {
+            // Every column defaults to NULL already.
+            return new DefaultRendering(null);
+        }
+
+        var invariant = CultureInfo.InvariantCulture;
+        string? sql = type.Kind switch
+        {
+            DataTypeKind.Boolean => AsBoolean(value) is { } b ? (b ? "true" : "false") : null,
+            DataTypeKind.Byte or DataTypeKind.Int16 or DataTypeKind.Int32 or DataTypeKind.Int64
+                or DataTypeKind.Decimal or DataTypeKind.Single or DataTypeKind.Double => AsNumber(value),
+            DataTypeKind.FixedText or DataTypeKind.Text or DataTypeKind.Json or DataTypeKind.Xml => value switch
+            {
+                string s => Literal(s.Replace("\0", "", StringComparison.Ordinal)),
+                byte[] => null,
+                bool b => Literal(b ? "1" : "0"),
+                IFormattable f => Literal(f.ToString(null, invariant)),
+                _ => null,
+            },
+            DataTypeKind.FixedBinary or DataTypeKind.Binary => value is byte[] bytes ? $"'\\x{Convert.ToHexString(bytes)}'::bytea" : null,
+            DataTypeKind.Date => value is string s && ParseDateTime(s) is { } d ? Literal(d.ToString("yyyy-MM-dd", invariant)) : null,
+            DataTypeKind.DateTime => value is string s && ParseDateTime(s) is { } dt
+                ? Literal(dt.ToString("yyyy-MM-dd HH:mm:ss.FFFFFFF", invariant))
+                : null,
+            DataTypeKind.DateTimeOffset => value is string s
+                && DateTimeOffset.TryParse(s, invariant, DateTimeStyles.AssumeUniversal, out var dto)
+                ? Literal(dto.ToString("yyyy-MM-dd HH:mm:ss.FFFFFFFzzz", invariant))
+                : null,
+            DataTypeKind.Time => value is string s && TimeOnly.TryParse(s, invariant, out var t)
+                ? Literal(t.ToString("HH:mm:ss.FFFFFFF", invariant))
+                : null,
+            DataTypeKind.Guid => value is string s && Guid.TryParse(s, out var g) ? Literal(g.ToString("D")) : null,
+            _ => null,
+        };
+
+        return sql is null
+            ? DefaultRendering.Unsupported($"the value cannot be stored in a column of type {type}.")
+            : new DefaultRendering(sql);
+    }
+
+    private static bool? AsBoolean(object value) => value switch
+    {
+        bool b => b,
+        long l => l != 0,
+        decimal d => d != 0,
+        double d => d != 0,
+        string s when s.Trim() is "1" or "0" => s.Trim() == "1",
+        string s when bool.TryParse(s.Trim(), out var b) => b,
+        _ => null,
+    };
+
+    private static string? AsNumber(object value) => value switch
+    {
+        bool b => b ? "1" : "0",
+        long l => l.ToString(CultureInfo.InvariantCulture),
+        decimal d => d.ToString(CultureInfo.InvariantCulture),
+        double d when double.IsFinite(d) => d.ToString("R", CultureInfo.InvariantCulture),
+        string s when decimal.TryParse(s.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var d) => d.ToString(CultureInfo.InvariantCulture),
+        _ => null,
+    };
+
+    private static DateTime? ParseDateTime(string text)
+    {
+        var invariant = CultureInfo.InvariantCulture;
+        text = text.Trim();
+        // SQL Server's unseparated ISO form, e.g. '19000101'.
+        if (DateTime.TryParseExact(text, ["yyyyMMdd", "yyyyMMdd HH:mm:ss", "yyyyMMdd HH:mm:ss.FFFFFFF"], invariant, DateTimeStyles.None, out var exact))
+        {
+            return exact;
+        }
+
+        return DateTime.TryParse(text, invariant, DateTimeStyles.None, out var parsed) ? parsed : null;
+    }
+}

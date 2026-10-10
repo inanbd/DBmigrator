@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore -c Release
+
+      - name: Check formatting
+        run: dotnet format whitespace --verify-no-changes --no-restore
+
+      # Integration tests start SQL Server and PostgreSQL in Docker via Testcontainers.
+      - name: Test
+        run: dotnet test --no-build -c Release

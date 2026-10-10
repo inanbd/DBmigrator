@@ -1,0 +1,40 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{json,yml,yaml,props,csproj,slnx,xml}]
+indent_size = 2
+
+[*.cs]
+csharp_style_namespace_declarations = file_scoped:warning
+csharp_style_var_for_built_in_types = true:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+dotnet_sort_system_directives_first = true
+
+# The tool builds SQL from catalog metadata, quoted through the dialects.
+dotnet_diagnostic.CA2100.severity = none
+# Library code awaits without capturing a context; noise in a tool with no UI thread yet.
+dotnet_diagnostic.CA2007.severity = none
+# Messages are English-only for now.
+dotnet_diagnostic.CA1303.severity = none
+# Culture-sensitive APIs: values are formatted with the invariant culture explicitly where it matters.
+dotnet_diagnostic.CA1305.severity = none
+dotnet_diagnostic.CA1307.severity = none
+dotnet_diagnostic.CA1309.severity = none
+dotnet_diagnostic.CA1310.severity = none
+dotnet_diagnostic.CA1311.severity = none
+# DataTypeKind deliberately mirrors CLR type names (Int32, Guid, ...), and DefaultValue.Function
+# reads best as is; the library targets C# consumers.
+dotnet_diagnostic.CA1716.severity = none
+dotnet_diagnostic.CA1720.severity = none
+
+[tests/**.cs]
+# xUnit test classes and methods use underscores in names.
+dotnet_diagnostic.CA1707.severity = none
+dotnet_diagnostic.CA1515.severity = none

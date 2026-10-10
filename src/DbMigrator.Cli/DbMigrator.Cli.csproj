@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>dbmigrator</AssemblyName>
+    <RootNamespace>DbMigrator.Cli</RootNamespace>
+    <Description>Command-line runner for DbMigrator.</Description>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>dbmigrator</ToolCommandName>
+    <PackageId>DbMigrator.Cli</PackageId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DbMigrator.Core\DbMigrator.Core.csproj" />
+    <ProjectReference Include="..\DbMigrator.Providers.SqlServer\DbMigrator.Providers.SqlServer.csproj" />
+    <ProjectReference Include="..\DbMigrator.Providers.PostgreSql\DbMigrator.Providers.PostgreSql.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.CommandLine" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DbMigrator.IntegrationTests" />
+  </ItemGroup>
+
+</Project>
