@@ -52,4 +52,19 @@ public class TableFilterTests
         Assert.True(filter.Matches(DboOrders));
         Assert.False(filter.Matches(new QualifiedName("dbo", "Order")));
     }
+
+    [Fact]
+    public void Exactly_selects_only_the_named_tables_even_with_wildcard_characters()
+    {
+        var odd = new QualifiedName("dbo", "Rate*Card?");
+        var filter = TableFilter.Exactly([odd, SalesOrders]);
+
+        Assert.True(filter.Matches(odd));
+        Assert.True(filter.Matches(SalesOrders));
+        Assert.False(filter.Matches(new QualifiedName("dbo", "RateXCardY")));
+        Assert.False(filter.Matches(new QualifiedName("sales", "orders")));
+        Assert.False(filter.Matches(DboOrders));
+        Assert.Equal(2, filter.Tables!.Count);
+        Assert.Null(TableFilter.All.Tables);
+    }
 }

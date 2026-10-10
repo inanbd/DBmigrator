@@ -12,8 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DbMigrator.Core\DbMigrator.Core.csproj" />
-    <ProjectReference Include="..\DbMigrator.Providers.SqlServer\DbMigrator.Providers.SqlServer.csproj" />
-    <ProjectReference Include="..\DbMigrator.Providers.PostgreSql\DbMigrator.Providers.PostgreSql.csproj" />
+    <ProjectReference Include="..\DbMigrator.Providers\DbMigrator.Providers.csproj" />
   </ItemGroup>
 
   <ItemGroup>

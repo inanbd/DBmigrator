@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <Description>Schema builders and in-memory engine fakes shared by the test projects.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\DbMigrator.Core\DbMigrator.Core.csproj" />
+    <ProjectReference Include="..\..\src\DbMigrator.Providers.PostgreSql\DbMigrator.Providers.PostgreSql.csproj" />
+  </ItemGroup>
+
+</Project>

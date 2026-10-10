@@ -2,8 +2,7 @@ using System.CommandLine;
 using DbMigrator.Core.Execution;
 using DbMigrator.Core.Planning;
 using DbMigrator.Core.Providers;
-using DbMigrator.Providers.PostgreSql;
-using DbMigrator.Providers.SqlServer;
+using DbMigrator.Providers;
 
 namespace DbMigrator.Cli;
 
@@ -16,7 +15,7 @@ public static class CliApp
     private const string SourceVariable = "DBMIGRATOR_SOURCE";
     private const string TargetVariable = "DBMIGRATOR_TARGET";
 
-    private static readonly IReadOnlyList<IDatabaseProvider> Providers = [new SqlServerProvider(), new PostgreSqlProvider()];
+    private static ProviderCatalog Providers => BuiltInProviders.Catalog;
 
     public static Task<int> RunAsync(string[] args, TextWriter output, TextWriter error, CancellationToken cancellationToken = default)
     {
@@ -35,7 +34,7 @@ public static class CliApp
         var command = new Command("providers", "List the supported database engines.");
         command.SetAction(_ =>
         {
-            foreach (var provider in Providers)
+            foreach (var provider in Providers.All)
             {
                 var roles = string.Join(" and ", new[] { provider.SupportsSource ? "source" : null, provider.SupportsTarget ? "target" : null }.OfType<string>());
                 output.WriteLine($"{provider.Id,-12} {provider.DisplayName} ({roles})");
@@ -156,9 +155,16 @@ public static class CliApp
                 reporter.WriteReport(report);
                 return report.Succeeded ? Success : Failure;
             }
+            catch (MigrationCancelledException ex)
+            {
+                reporter.WriteReport(ex.PartialReport);
+                error.WriteLine("Cancelled. The table being copied was rolled back; tables already copied remain.");
+                return Cancelled;
+            }
             catch (OperationCanceledException)
             {
-                error.WriteLine("Cancelled. The table being copied was rolled back; tables already copied remain.");
+                // Only reading the two databases can be cancelled this way; nothing was changed yet.
+                error.WriteLine("Cancelled before anything was changed.");
                 return Cancelled;
             }
             catch (Exception ex) when (IsDatabaseError(ex))
@@ -240,8 +246,8 @@ public static class CliApp
         {
             _naming.AcceptOnlyFromAmong("lower", "snake", "preserve");
             _ifExists.AcceptOnlyFromAmong("fail", "drop", "truncate", "append", "skip");
-            _from.AcceptOnlyFromAmong(Providers.Where(p => p.SupportsSource).Select(p => p.Id).ToArray());
-            _to.AcceptOnlyFromAmong(Providers.Where(p => p.SupportsTarget).Select(p => p.Id).ToArray());
+            _from.AcceptOnlyFromAmong(Providers.Sources.Select(p => p.Id).ToArray());
+            _to.AcceptOnlyFromAmong(Providers.Targets.Select(p => p.Id).ToArray());
         }
 
         public void AddTo(Command command)
@@ -306,9 +312,9 @@ public static class CliApp
             };
 
             resolved = new ResolvedOptions(
-                Providers.First(p => p.Id == parse.GetValue(_from)),
+                Providers.Get(parse.GetValue(_from)!),
                 source,
-                Providers.First(p => p.Id == parse.GetValue(_to)),
+                Providers.Get(parse.GetValue(_to)!),
                 string.IsNullOrWhiteSpace(target) ? null : target,
                 options);
             return true;

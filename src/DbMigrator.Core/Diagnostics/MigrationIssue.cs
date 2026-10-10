@@ -50,4 +50,7 @@ public static class IssueCodes
     public const string NulCharacterRemoved = "nul-removed";
     public const string SkippedColumn = "skipped-column";
     public const string NoTables = "no-tables";
+    public const string LimitedCatalogAccess = "limited-catalog-access";
+    public const string MissingPrivilege = "missing-privilege";
+    public const string SystemDatabase = "system-database";
 }

@@ -1,0 +1,21 @@
+Source: SQL Server 16.0 (Developer)
+Target: PostgreSQL 17.2
+
+4 table(s), in load order:
+  dbo.Audit      ->  public.audit  [truncate and load]
+  dbo.Customers  ->  public.customers  [create]  ~1,200 rows
+  dbo.Wide       ->  public.wide  [create]
+  sales.Orders   ->  sales.orders  [create]  ~3,500,000 rows
+Schemas to create: sales
+
+Warnings (1):
+  [offset-dropped] sales.Orders.Placed: timestamptz stores the instant but not the original UTC offset; values are converted to UTC. Fractional seconds go from 7 digits to 6; the extra digits are dropped.
+
+Notes (8):
+  [case-sensitivity] Shop: The source compares text case-insensitively.
+  [precision-reduced] dbo.Wide.T1: Fractional seconds go from 7 digits to 6; the extra digits are dropped.
+  [precision-reduced] dbo.Wide.T2: Fractional seconds go from 7 digits to 6; the extra digits are dropped.
+  [precision-reduced] dbo.Wide.T3: Fractional seconds go from 7 digits to 6; the extra digits are dropped.
+  [precision-reduced] dbo.Wide.T4: Fractional seconds go from 7 digits to 6; the extra digits are dropped.
+  [precision-reduced] dbo.Wide.T5: Fractional seconds go from 7 digits to 6; the extra digits are dropped.
+  [precision-reduced] ... and 2 more like this.

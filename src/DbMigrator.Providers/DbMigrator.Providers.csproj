@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>The database engines DbMigrator ships with.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DbMigrator.Core\DbMigrator.Core.csproj" />
+    <ProjectReference Include="..\DbMigrator.Providers.SqlServer\DbMigrator.Providers.SqlServer.csproj" />
+    <ProjectReference Include="..\DbMigrator.Providers.PostgreSql\DbMigrator.Providers.PostgreSql.csproj" />
+  </ItemGroup>
+
+</Project>

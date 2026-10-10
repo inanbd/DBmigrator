@@ -1,9 +1,9 @@
 using DbMigrator.Core.Schema;
 
-namespace DbMigrator.Tests;
+namespace DbMigrator.TestSupport;
 
 /// <summary>Terse construction of source schemas for planner and dialect tests.</summary>
-internal static class SchemaBuilder
+public static class SchemaBuilder
 {
     public static SourceSchema Source(params TableDefinition[] tables) => new()
     {

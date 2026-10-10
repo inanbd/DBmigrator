@@ -4,9 +4,11 @@
     <Project Path="src/DbMigrator.Core/DbMigrator.Core.csproj" />
     <Project Path="src/DbMigrator.Providers.PostgreSql/DbMigrator.Providers.PostgreSql.csproj" />
     <Project Path="src/DbMigrator.Providers.SqlServer/DbMigrator.Providers.SqlServer.csproj" />
+    <Project Path="src/DbMigrator.Providers/DbMigrator.Providers.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/DbMigrator.IntegrationTests/DbMigrator.IntegrationTests.csproj" />
     <Project Path="tests/DbMigrator.Tests/DbMigrator.Tests.csproj" />
+    <Project Path="tests/DbMigrator.TestSupport/DbMigrator.TestSupport.csproj" />
   </Folder>
 </Solution>

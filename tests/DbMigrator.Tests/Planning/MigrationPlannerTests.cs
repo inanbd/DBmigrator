@@ -3,7 +3,7 @@ using DbMigrator.Core.Planning;
 using DbMigrator.Core.Providers;
 using DbMigrator.Core.Schema;
 using DbMigrator.Providers.PostgreSql;
-using static DbMigrator.Tests.SchemaBuilder;
+using static DbMigrator.TestSupport.SchemaBuilder;
 
 namespace DbMigrator.Tests.Planning;
 

@@ -1,6 +1,6 @@
 using DbMigrator.Core.Planning;
 using DbMigrator.Core.Schema;
-using static DbMigrator.Tests.SchemaBuilder;
+using static DbMigrator.TestSupport.SchemaBuilder;
 
 namespace DbMigrator.Tests.Planning;
 

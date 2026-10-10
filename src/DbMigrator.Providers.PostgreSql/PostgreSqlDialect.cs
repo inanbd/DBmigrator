@@ -199,10 +199,12 @@ public sealed class PostgreSqlDialect : ISqlDialect
     private static TypeMapping MapDateTimeOffset(DataType type)
     {
         var mapping = WithFractionalSeconds(type, "timestamptz");
+        // The lost offset matters more than lost precision, so it owns the note and mentions both.
+        var precision = mapping.Note is null ? "" : $" {mapping.Note.Message}";
         return mapping with
         {
-            Note = mapping.Note ?? new(IssueSeverity.Warning, IssueCodes.OffsetDropped,
-                "timestamptz stores the instant but not the original UTC offset; values are converted to UTC."),
+            Note = new(IssueSeverity.Warning, IssueCodes.OffsetDropped,
+                $"timestamptz stores the instant but not the original UTC offset; values are converted to UTC.{precision}"),
         };
     }
 

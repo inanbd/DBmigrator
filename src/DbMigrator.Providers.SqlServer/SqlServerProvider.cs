@@ -21,4 +21,9 @@ public sealed class SqlServerProvider : IDatabaseProvider
 
     public ISqlDialect CreateDialect() =>
         throw new NotSupportedException("SQL Server cannot be a migration target yet.");
+
+    public ConnectionStringFormat Connection => SqlServerConnection.Format;
+
+    public Task<ConnectionCheck> CheckConnectionAsync(string connectionString, ConnectionRole role, CancellationToken cancellationToken) =>
+        SqlServerConnection.CheckAsync(connectionString, role, cancellationToken);
 }

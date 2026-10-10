@@ -2,7 +2,7 @@ using DbMigrator.Core.Diagnostics;
 using DbMigrator.Core.Planning;
 using DbMigrator.Core.Schema;
 using DbMigrator.Providers.PostgreSql;
-using static DbMigrator.Tests.SchemaBuilder;
+using static DbMigrator.TestSupport.SchemaBuilder;
 
 namespace DbMigrator.Tests.PostgreSql;
 
@@ -45,6 +45,18 @@ public class PostgreSqlDialectTests
         Assert.Equal(IssueCodes.PrecisionReduced, timestamp.Note?.Code);
         Assert.Equal(IssueCodes.OffsetDropped, offset.Note?.Code);
         Assert.Null(Dialect.MapType(new DataType(DataTypeKind.DateTime) { Precision = 3 }).Note);
+    }
+
+    [Fact]
+    public void Offset_warning_survives_reduced_precision()
+    {
+        // datetimeoffset(7) is SQL Server's default; its offset loss must not be hidden by the precision note.
+        var mapping = Dialect.MapType(new DataType(DataTypeKind.DateTimeOffset) { Precision = 7 });
+
+        Assert.Equal("timestamptz(6)", mapping.SqlType);
+        Assert.Equal(IssueCodes.OffsetDropped, mapping.Note?.Code);
+        Assert.Equal(IssueSeverity.Warning, mapping.Note?.Severity);
+        Assert.Contains("from 7 digits to 6", mapping.Note?.Message);
     }
 
     public static TheoryData<DefaultValue, DataType, string?> DefaultCases => new()

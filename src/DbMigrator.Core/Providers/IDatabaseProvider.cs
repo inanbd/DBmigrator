@@ -22,7 +22,21 @@ public interface IDatabaseProvider
 
     /// <summary>The target dialect without connecting, for generating scripts offline.</summary>
     ISqlDialect CreateDialect();
+
+    /// <summary>How front ends describe, build, parse and redact this engine's connection strings.</summary>
+    ConnectionStringFormat Connection { get; }
+
+    /// <summary>
+    /// Opens one connection and reports the server, database and login, plus findings about
+    /// privileges that would make a migration in <paramref name="role"/> incomplete. Never reads
+    /// the catalog. Throws the driver's exception when it cannot connect, and
+    /// <see cref="NotSupportedException"/> for a role the engine does not support.
+    /// </summary>
+    Task<ConnectionCheck> CheckConnectionAsync(string connectionString, ConnectionRole role, CancellationToken cancellationToken);
 }
+
+/// <summary>The outcome of <see cref="IDatabaseProvider.CheckConnectionAsync"/>.</summary>
+public sealed record ConnectionCheck(string ServerVersion, string Database, string User, IReadOnlyList<MigrationIssue> Findings);
 
 /// <summary>A database being read from. Implementations open pooled connections per call and are safe to use from several tasks.</summary>
 public interface ISourceDatabase : IAsyncDisposable

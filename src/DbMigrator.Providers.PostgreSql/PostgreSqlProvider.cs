@@ -20,4 +20,9 @@ public sealed class PostgreSqlProvider : IDatabaseProvider
     public ITargetDatabase OpenTarget(string connectionString) => new PostgreSqlTargetDatabase(connectionString);
 
     public ISqlDialect CreateDialect() => new PostgreSqlDialect();
+
+    public ConnectionStringFormat Connection => PostgreSqlConnection.Format;
+
+    public Task<ConnectionCheck> CheckConnectionAsync(string connectionString, ConnectionRole role, CancellationToken cancellationToken) =>
+        PostgreSqlConnection.CheckAsync(connectionString, role, cancellationToken);
 }

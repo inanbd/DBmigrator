@@ -1,0 +1,18 @@
+  MISMATCH  dbo.Wide: The source has 3,500,001 row(s), 3,500,000 were copied, and the target now has 3,500,000.
+
+Warnings (2):
+  [offset-dropped] sales.Orders.Placed: timestamptz stores the instant but not the original UTC offset; values are converted to UTC. Fractional seconds go from 7 digits to 6; the extra digits are dropped.
+  [nul-removed] dbo.Audit.Message: PostgreSQL text cannot contain NUL (\0) characters; they were removed from 3 value(s).
+
+Notes (8):
+  [case-sensitivity] Shop: The source compares text case-insensitively.
+  [precision-reduced] dbo.Wide.T1: Fractional seconds go from 7 digits to 6; the extra digits are dropped.
+  [precision-reduced] dbo.Wide.T2: Fractional seconds go from 7 digits to 6; the extra digits are dropped.
+  [precision-reduced] dbo.Wide.T3: Fractional seconds go from 7 digits to 6; the extra digits are dropped.
+  [precision-reduced] dbo.Wide.T4: Fractional seconds go from 7 digits to 6; the extra digits are dropped.
+  [precision-reduced] dbo.Wide.T5: Fractional seconds go from 7 digits to 6; the extra digits are dropped.
+  [precision-reduced] ... and 2 more like this.
+
+Copied 3,501,200 rows into 1 table(s) in 1:01:30.
+Built 3 of 4 key, index and identity step(s).
+Migration finished with problems: 2 table(s) and 1 step(s) failed.
