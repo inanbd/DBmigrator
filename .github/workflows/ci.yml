@@ -4,6 +4,11 @@ on:
   push:
   pull_request:
 
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: 1
+  AVALONIA_TELEMETRY_OPTOUT: 1
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
@@ -25,5 +30,23 @@ jobs:
         run: dotnet format whitespace --verify-no-changes --no-restore
 
       # Integration tests start SQL Server and PostgreSQL in Docker via Testcontainers.
+      # The desktop UI tests run headless and save a screenshot of every step.
       - name: Test
         run: dotnet test --no-build -c Release
+        env:
+          DBMIGRATOR_SCREENSHOTS: ${{ github.workspace }}/screenshots
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-screenshots
+          path: screenshots/
+          if-no-files-found: ignore
+
+      # The real app on a virtual display: it must start, show its window and exit cleanly.
+      - name: Desktop app smoke test
+        run: |
+          command -v xvfb-run >/dev/null || (sudo apt-get update -q && sudo apt-get install -y -q xvfb)
+          export DBMIGRATOR_DESKTOP_HOME="$RUNNER_TEMP/dbmigrator-home"
+          xvfb-run -a dotnet src/DbMigrator.Desktop/bin/Release/net10.0/dbmigrator-desktop.dll --smoke-test

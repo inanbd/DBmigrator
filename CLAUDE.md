@@ -1,7 +1,7 @@
 # Working in this repository
 
 DbMigrator copies schema and data between database engines (.NET 10). See README.md for the
-milestone plan; milestone 1 (SQL Server → PostgreSQL, CLI) is done.
+milestone plan; milestones 1 (SQL Server → PostgreSQL, CLI) and 2 (Avalonia desktop wizard) are done.
 
 ## Build and test
 
@@ -26,3 +26,28 @@ If Docker is installed but not running in a cloud session, `service docker start
 - **Dates into PostgreSQL go as raw values** (microseconds/days since 2000-01-01). Writing `DateTime`
   would let Npgsql turn `MinValue`/`MaxValue` into ±infinity.
 - **Package versions** are pinned centrally in `Directory.Packages.props`.
+
+## Desktop app
+
+- **View models never reference Avalonia** (`ArchitectureTests`); neither does Platform. Views bind with
+  compiled bindings; there is no DI container (`ShellServices`, built in `CompositionRoot`).
+- **Nothing blocking on the UI thread.** Every engine, provider, credential-store and file call goes
+  through `BackgroundWork`: Core awaits without `ConfigureAwait`, so an engine call made from the UI thread
+  would run there. The view-model tests run on a fake UI thread that catches it (`UiThreadContext`).
+- **Progress is pulled**, through `RunProgressHub` on a 250 ms `IUiScheduler` timer; never `Progress<T>`.
+- **Secrets** are persisted only through `ICredentialStore` (the OS store, never a file). Profiles are
+  created only by `ProfileFactory`, which strips them; reports and logs use `Describe`/`Redact` only.
+- **No `TextBox` holds more than 64 KB** (`ScriptViewModel.MaxPreviewChars`); full text goes to Copy/Save.
+- **UI tests** use `AvaloniaFixture`: never `Avalonia.Headless.XUnit` (it needs xunit.v3 3.x), never dispose
+  the session, keep all Avalonia access inside `RunAsync`, and keep `Parallelization(Mode = None)`.
+  `StepRenderTests` fail on any binding warning.
+- **Avalonia 12 gotchas:**
+  - Bind read-only values `Mode=OneWay` where the property is two-way by default: `Run.Text`, DataGrid
+    column `Binding`, `ProgressBar.Value`. Otherwise a formatted value is written back (an infinite loop
+    with a settable source) or fails to convert.
+  - `x:DataType` on every DataGrid column; no generic types in `x:DataType`; show nullable sub-objects
+    through a `ContentControl` with a typed `DataTemplate`.
+  - Bound text inside a `RadioButton`/`CheckBox` goes in a `TextBlock`, or `_` becomes an access key.
+  - CA1822 fires on commands and on properties returning statics.
+  - `Bitmap.Save(string, BitmapEncoderOptions)`; the `int?` overload is obsolete.
+  - `ShutdownRequestedEventArgs.IsOSShutdown` is internal; use `WindowClosingEventArgs.CloseReason`.
