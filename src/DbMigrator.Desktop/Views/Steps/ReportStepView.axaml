@@ -1,0 +1,115 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DbMigrator.Desktop.ViewModels"
+             xmlns:parts="using:DbMigrator.Desktop.Views.Parts"
+             x:Class="DbMigrator.Desktop.Views.Steps.ReportStepView"
+             x:DataType="vm:ReportStepViewModel">
+  <DockPanel>
+    <!-- Outcome -->
+    <Border DockPanel.Dock="Top" Name="Outcome" Classes="banner" Classes.success="{Binding IsSuccess}" Classes.warning="{Binding IsCancelled}"
+            Classes.error="{Binding IsFailure}" Margin="0,0,0,12">
+      <StackPanel Spacing="4">
+        <TextBlock Name="Headline" Text="{Binding Headline}" Classes="h2" TextWrapping="Wrap" />
+        <SelectableTextBlock Name="SubHeadline" Text="{Binding SubHeadline}" TextWrapping="Wrap" />
+      </StackPanel>
+    </Border>
+
+    <ItemsControl DockPanel.Dock="Top" Name="Kpis" ItemsSource="{Binding Kpis}" Margin="0,0,0,12">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <UniformGrid Rows="1" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="vm:KpiViewModel">
+          <Border Classes="card" Margin="0,0,8,0" Padding="12,8">
+            <StackPanel>
+              <TextBlock Text="{Binding Label}" Classes="muted" FontSize="12" />
+              <TextBlock Text="{Binding Value}" Classes="h3" />
+            </StackPanel>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+
+    <!-- Actions and where the report was saved -->
+    <StackPanel DockPanel.Dock="Bottom" Spacing="8" Margin="0,12,0,0">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Button Name="SaveReport" Content="Save report..." Command="{Binding SaveReportCommand}" />
+        <Button Name="CopySummary" Content="Copy summary" Command="{Binding CopySummaryCommand}" />
+        <Button Name="SaveRemainingSql" Content="Save SQL still to run..." Command="{Binding SaveRemainingSqlCommand}" IsVisible="{Binding HasRemainingSql}" />
+        <Border Width="24" />
+        <Button Name="RunAgain" Content="Run again..." Command="{Binding RunAgainCommand}" />
+        <Button Name="NewMigration" Classes="accent" Content="New migration" Command="{Binding NewMigrationCommand}" />
+        <ProgressBar IsIndeterminate="True" Width="80" IsVisible="{Binding IsBusy}" />
+        <TextBlock Text="{Binding BusyText}" Classes="muted" VerticalAlignment="Center" IsVisible="{Binding IsBusy}" />
+      </StackPanel>
+      <TextBlock Name="ReportNotice" Text="{Binding Notice}" Classes="muted" IsVisible="{Binding Notice, Converter={x:Static ObjectConverters.IsNotNull}}" />
+      <TextBlock Name="AutosaveText" Text="{Binding AutosaveText}" Classes="muted" Classes.error="{Binding AutosaveFailed}" TextWrapping="Wrap" />
+    </StackPanel>
+
+    <Grid RowDefinitions="Auto,*">
+      <!-- What needs attention, most serious first -->
+      <ScrollViewer MaxHeight="260" IsVisible="{Binding HasAttention}" Margin="0,0,0,8">
+        <ItemsControl Name="Attention" ItemsSource="{Binding Attention}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:AttentionGroupViewModel">
+              <Expander IsExpanded="{Binding IsExpanded, Mode=OneTime}" HorizontalAlignment="Stretch" Margin="0,0,0,6">
+                <Expander.Header>
+                  <TextBlock Text="{Binding Header}" Classes="label" Classes.error="{Binding IsSevere}" />
+                </Expander.Header>
+                <StackPanel Spacing="6">
+                  <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Classes="muted" />
+                  <ItemsControl ItemsSource="{Binding Items}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:AttentionItemViewModel">
+                        <DockPanel Margin="0,2">
+                          <Button DockPanel.Dock="Right" Content="Show SQL" Classes="link" IsVisible="{Binding HasStep}"
+                                  Command="{Binding $parent[UserControl].((vm:ReportStepViewModel)DataContext).ShowSqlCommand}" CommandParameter="{Binding}" />
+                          <TextBlock TextWrapping="Wrap">
+                            <Run Text="{Binding Title, Mode=OneWay}" FontWeight="SemiBold" />
+                            <Run Text="{Binding Detail, Mode=OneWay}" />
+                          </TextBlock>
+                        </DockPanel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <Button Content="Save SQL still to run..." IsVisible="{Binding OffersRemainingSql}" HorizontalAlignment="Left"
+                          Command="{Binding $parent[UserControl].((vm:ReportStepViewModel)DataContext).SaveRemainingSqlCommand}" />
+                </StackPanel>
+              </Expander>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+
+      <TabControl Grid.Row="1" Name="ReportTabs" SelectedIndex="{Binding SelectedTab}">
+        <TabItem Header="Tables">
+          <DockPanel>
+            <CheckBox DockPanel.Dock="Top" Name="ProblemsOnly" IsChecked="{Binding ProblemsOnly}" Content="Problems only" Margin="0,8" />
+            <DataGrid Name="ReportTablesGrid" ItemsSource="{Binding VisibleTables}" AutoGenerateColumns="False" IsReadOnly="True" CanUserSortColumns="True">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="Status" Binding="{Binding StatusText, Mode=OneWay}" x:DataType="vm:ReportTableRowViewModel" />
+                <DataGridTextColumn Header="Source" Binding="{Binding Source, Mode=OneWay}" x:DataType="vm:ReportTableRowViewModel" Width="*" MinWidth="140" />
+                <DataGridTextColumn Header="Target" Binding="{Binding Target, Mode=OneWay}" x:DataType="vm:ReportTableRowViewModel" Width="*" MinWidth="140" />
+                <DataGridTextColumn Header="Action" Binding="{Binding Action, Mode=OneWay}" x:DataType="vm:ReportTableRowViewModel" />
+                <DataGridTextColumn Header="Rows copied" Binding="{Binding RowsCopied, Mode=OneWay}" x:DataType="vm:ReportTableRowViewModel" />
+                <DataGridTextColumn Header="Source count" Binding="{Binding SourceCount, Mode=OneWay}" x:DataType="vm:ReportTableRowViewModel" />
+                <DataGridTextColumn Header="Target count" Binding="{Binding TargetCount, Mode=OneWay}" x:DataType="vm:ReportTableRowViewModel" />
+                <DataGridTextColumn Header="Elapsed" Binding="{Binding Elapsed, Mode=OneWay}" x:DataType="vm:ReportTableRowViewModel" />
+                <DataGridTextColumn Header="Rate" Binding="{Binding Rate, Mode=OneWay}" x:DataType="vm:ReportTableRowViewModel" />
+                <DataGridTextColumn Header="Message" Binding="{Binding Message, Mode=OneWay}" x:DataType="vm:ReportTableRowViewModel" Width="2*" MinWidth="140" />
+              </DataGrid.Columns>
+            </DataGrid>
+          </DockPanel>
+        </TabItem>
+        <TabItem Header="Issues">
+          <parts:IssuesView DataContext="{Binding Issues}" Margin="0,8,0,0" />
+        </TabItem>
+        <TabItem Header="SQL still to run">
+          <parts:ScriptView DataContext="{Binding RemainingSql}" Margin="0,8,0,0" />
+        </TabItem>
+      </TabControl>
+    </Grid>
+  </DockPanel>
+</UserControl>

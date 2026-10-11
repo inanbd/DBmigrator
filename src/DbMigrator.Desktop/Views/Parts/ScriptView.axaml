@@ -1,0 +1,35 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DbMigrator.Desktop.ViewModels"
+             x:Class="DbMigrator.Desktop.Views.Parts.ScriptView"
+             x:DataType="vm:ScriptViewModel">
+  <DockPanel>
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+      <Button Name="CopyAll" Content="Copy all" Command="{Binding CopyAllCommand}" />
+      <Button Name="SaveScript" Content="Save as .sql..." Command="{Binding SaveCommand}" />
+      <TextBlock Name="ScriptNotice" Text="{Binding Notice}" Classes="muted" VerticalAlignment="Center"
+                 IsVisible="{Binding Notice, Converter={x:Static ObjectConverters.IsNotNull}}" />
+    </StackPanel>
+    <TextBlock DockPanel.Dock="Top" Text="No SQL." Classes="muted" IsVisible="{Binding IsEmpty}" />
+    <Grid ColumnDefinitions="2*,8,3*">
+      <!-- Virtualised: a script can have tens of thousands of statements. -->
+      <ListBox Name="ScriptSteps" ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:ScriptStepRowViewModel">
+            <TextBlock Text="{Binding Text}" TextTrimming="CharacterEllipsis" Classes.h3="{Binding IsHeader}" Classes.mono="{Binding IsStep}" />
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+      <DockPanel Grid.Column="2">
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,0,0,6">
+          <Button Content="Copy step" Command="{Binding CopyStepCommand}" />
+          <TextBlock Text="Preview truncated; use Copy or Save for the full text." Classes="warning" VerticalAlignment="Center"
+                     IsVisible="{Binding IsPreviewTruncated}" />
+        </StackPanel>
+        <!-- Never more than 64 KB: a TextBox with megabytes of text stalls the UI. -->
+        <TextBox Name="ScriptPreview" Text="{Binding PreviewText}" IsReadOnly="True" Classes="mono" TextWrapping="NoWrap" AcceptsReturn="True"
+                 ScrollViewer.HorizontalScrollBarVisibility="Auto" AutomationProperties.Name="Selected statement" />
+      </DockPanel>
+    </Grid>
+  </DockPanel>
+</UserControl>

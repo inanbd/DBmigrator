@@ -1,0 +1,49 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DbMigrator.Desktop.ViewModels"
+             xmlns:parts="using:DbMigrator.Desktop.Views.Parts"
+             x:Class="DbMigrator.Desktop.Views.Steps.SourceStepView"
+             x:DataType="vm:SourceStepViewModel">
+  <Grid ColumnDefinitions="520,24,*">
+    <ScrollViewer>
+      <parts:ConnectionFormView Margin="0,0,12,0" />
+    </ScrollViewer>
+    <ScrollViewer Grid.Column="2">
+      <StackPanel Spacing="12">
+        <parts:ConnectionStatusView />
+        <ContentControl Name="Summary" Content="{Binding Summary}">
+          <ContentControl.DataTemplates>
+            <DataTemplate DataType="vm:SourceSummaryViewModel">
+              <Border Classes="card">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="{Binding ServerVersion}" Classes="label" TextWrapping="Wrap" />
+                  <TextBlock Text="{Binding Database, StringFormat='Database {0}'}" />
+                  <TextBlock Text="{Binding User, StringFormat='Login {0}'}" />
+                  <TextBlock Name="TablesText" Text="{Binding TablesText}" Margin="0,8,0,0" />
+                  <TextBlock Text="{Binding RowsText}" />
+                  <TextBlock Text="Largest tables" Classes="label" Margin="0,8,0,0" />
+                  <ItemsControl ItemsSource="{Binding LargestTables}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="x:String">
+                        <TextBlock Text="{Binding}" Classes="mono" />
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <TextBlock Text="{Binding ReadAtText}" Classes="muted" Margin="0,8,0,0" />
+                  <ItemsControl ItemsSource="{Binding Warnings}" IsVisible="{Binding HasWarnings}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:IssueRowViewModel">
+                        <TextBlock Text="{Binding Message}" Classes="warning" TextWrapping="Wrap" />
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ContentControl.DataTemplates>
+        </ContentControl>
+        <TextBlock Text="{Binding Advice}" Classes="help" />
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

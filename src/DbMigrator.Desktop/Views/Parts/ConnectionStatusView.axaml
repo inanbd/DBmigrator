@@ -1,0 +1,51 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DbMigrator.Desktop.ViewModels"
+             x:Class="DbMigrator.Desktop.Views.Parts.ConnectionStatusView"
+             x:DataType="vm:ConnectionStepViewModel">
+  <StackPanel Spacing="12">
+    <Border Classes="card" Classes.banner="{Binding IsFailed}" Classes.error="{Binding IsFailed}">
+      <StackPanel Spacing="8">
+        <TextBlock Name="StatusText" Classes="h3" Text="{Binding StatusText}" TextWrapping="Wrap" />
+        <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsBusy}">
+          <ProgressBar IsIndeterminate="True" Width="120" />
+          <TextBlock Text="{Binding BusyText}" Classes="muted" />
+        </StackPanel>
+        <TextBlock Name="TestPassed" Text="{Binding StatusTestPassed}" Classes="success" TextWrapping="Wrap"
+                   IsVisible="{Binding StatusTestPassed, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+        <!-- A failure: the driver's message as it is, the details, and suggestions only for known cases. -->
+        <StackPanel Spacing="6" IsVisible="{Binding HasError}">
+          <SelectableTextBlock Name="ConnectionError" Text="{Binding Error}" Classes="error" />
+          <Expander Header="Details" HorizontalAlignment="Stretch" IsVisible="{Binding ErrorDetails, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <SelectableTextBlock Text="{Binding ErrorDetails}" Classes="mono" TextWrapping="Wrap" />
+          </Expander>
+          <StackPanel Spacing="2" IsVisible="{Binding !!Hints.Count}">
+            <TextBlock Text="Suggestions" Classes="label" />
+            <ItemsControl Name="Hints" ItemsSource="{Binding Hints}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="x:String">
+                  <TextBlock Text="{Binding StringFormat='• {0}'}" TextWrapping="Wrap" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+          <Button Content="Copy details" Command="{Binding CopyErrorCommand}" HorizontalAlignment="Left" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
+
+    <ItemsControl Name="Findings" ItemsSource="{Binding Findings}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="vm:IssueRowViewModel">
+          <Border Classes="banner" Classes.warning="{Binding IsWarning}" Classes.error="{Binding IsError}" Margin="0,0,0,8">
+            <StackPanel>
+              <TextBlock Text="{Binding Severity}" Classes="label" />
+              <TextBlock Text="{Binding Message}" TextWrapping="Wrap" />
+            </StackPanel>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </StackPanel>
+</UserControl>

@@ -521,7 +521,9 @@ public sealed partial class RunStepViewModel : WizardStepViewModel
         var estimate = tracker.Rows.Where(r => r.Status != TableRunStatus.Skipped).Sum(r => r.EstimatedRows ?? 0);
         var parts = new List<string>
         {
-            $"{Humanize.Count(RowsCopied)} of ~{Humanize.Count(estimate)} rows ({OverallPercent:0}%)",
+            estimate > 0
+                ? $"{Humanize.Count(RowsCopied)} of ~{Humanize.Count(estimate)} rows ({OverallPercent:0}%)"
+                : $"{Humanize.Count(RowsCopied)} rows copied ({OverallPercent:0}%; the catalog has no row estimates)",
         };
         if (RowsPerSecond > 0 && tracker.Phase == MigrationPhase.CopyingData)
         {

@@ -137,11 +137,15 @@ public sealed partial class PhaseViewModel(MigrationPhase phase, string label) :
     public string Label => label;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(StateText), nameof(IsRunning), nameof(IsDone))]
+    [NotifyPropertyChangedFor(nameof(StateText), nameof(IsRunning), nameof(IsDone), nameof(StatusLine))]
     public partial PhaseState State { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StatusLine))]
     public partial string ElapsedText { get; set; } = "";
+
+    /// <summary>"Running · 2:41", or just the state before it has a time.</summary>
+    public string StatusLine => ElapsedText.Length == 0 ? StateText : $"{StateText} · {ElapsedText}";
 
     public DateTimeOffset? StartedAt { get; set; }
 

@@ -68,6 +68,9 @@ public sealed partial class ShellViewModel : ObservableObject, IWizardNavigator,
 
     public void SetLocked(bool locked) => IsLocked = locked;
 
+    /// <summary>Enters the first step, as the window does when it opens.</summary>
+    public Task StartAsync() => EnterAsync(Current);
+
     public async Task ReturnToReviewAsync(PreflightResult result)
     {
         Review.ShowPreflightResult(result);
@@ -222,6 +225,15 @@ public sealed partial class ShellViewModel : ObservableObject, IWizardNavigator,
         if (e.PropertyName == nameof(RunStepViewModel.IsRunning))
         {
             OnPropertyChanged(nameof(IsRunning));
+        }
+    }
+
+    [RelayCommand]
+    private async Task CopyErrorAsync()
+    {
+        if (Current.Error is { } error)
+        {
+            await Services.Clipboard.SetTextAsync($"{error}{Environment.NewLine}{Current.ErrorDetails}");
         }
     }
 

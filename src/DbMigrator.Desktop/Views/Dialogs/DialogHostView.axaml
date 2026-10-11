@@ -1,0 +1,61 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DbMigrator.Desktop.ViewModels"
+             x:Class="DbMigrator.Desktop.Views.Dialogs.DialogHostView"
+             x:DataType="vm:DialogHostViewModel">
+  <Border Name="Backdrop" IsVisible="{Binding IsOpen}" Background="{DynamicResource OverlayBrush}">
+    <ContentControl Name="DialogContent" Content="{Binding Current}" HorizontalAlignment="Center" VerticalAlignment="Center">
+      <ContentControl.DataTemplates>
+        <DataTemplate DataType="vm:ConfirmDialogViewModel">
+          <Border Classes="dialog">
+            <StackPanel Spacing="12">
+              <TextBlock Name="DialogTitle" Classes="h2" Text="{Binding Title}" TextWrapping="Wrap" />
+              <TextBlock Name="DialogMessage" Text="{Binding Message}" TextWrapping="Wrap" />
+              <ItemsControl Name="DialogBullets" ItemsSource="{Binding Bullets}" IsVisible="{Binding HasBullets}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="x:String">
+                    <DockPanel Margin="0,2">
+                      <TextBlock DockPanel.Dock="Left" Text="•" Margin="0,0,8,0" />
+                      <TextBlock Text="{Binding}" TextWrapping="Wrap" />
+                    </DockPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,8,0,0">
+                <!-- The safe answer is the default for Enter and Esc. -->
+                <Button Name="DialogCancel" Content="{Binding CancelText}" Command="{Binding CancelCommand}" IsDefault="True" IsCancel="True" />
+                <Button Name="DialogConfirm" Content="{Binding ConfirmText}" Command="{Binding ConfirmCommand}"
+                        Classes.danger="{Binding IsDestructive}" Classes.accent="{Binding !IsDestructive}" />
+              </StackPanel>
+            </StackPanel>
+          </Border>
+        </DataTemplate>
+        <DataTemplate DataType="vm:PromptDialogViewModel">
+          <Border Classes="dialog">
+            <StackPanel Spacing="12">
+              <TextBlock Name="DialogTitle" Classes="h2" Text="{Binding Title}" />
+              <TextBlock Text="{Binding Label}" Classes="label" />
+              <TextBox Name="PromptText" Text="{Binding Text}" AutomationProperties.Name="{Binding Label}" />
+              <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                <Button Name="DialogCancel" Content="Cancel" Command="{Binding CancelCommand}" IsCancel="True" />
+                <Button Name="DialogConfirm" Classes="accent" Content="{Binding ConfirmText}" Command="{Binding ConfirmCommand}" IsDefault="True" />
+              </StackPanel>
+            </StackPanel>
+          </Border>
+        </DataTemplate>
+        <DataTemplate DataType="vm:ErrorDialogViewModel">
+          <Border Classes="dialog">
+            <StackPanel Spacing="12">
+              <TextBlock Name="DialogTitle" Classes="h2" Text="{Binding Title}" />
+              <SelectableTextBlock Text="{Binding Message}" TextWrapping="Wrap" />
+              <Expander Header="Details" IsVisible="{Binding HasDetails}">
+                <SelectableTextBlock Text="{Binding Details}" Classes="mono" TextWrapping="Wrap" />
+              </Expander>
+              <Button Name="DialogClose" Content="Close" HorizontalAlignment="Right" Command="{Binding CloseCommand}" IsDefault="True" IsCancel="True" />
+            </StackPanel>
+          </Border>
+        </DataTemplate>
+      </ContentControl.DataTemplates>
+    </ContentControl>
+  </Border>
+</UserControl>

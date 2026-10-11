@@ -1,0 +1,57 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DbMigrator.Desktop.ViewModels"
+             x:Class="DbMigrator.Desktop.Views.Parts.TableDetailView"
+             x:DataType="vm:TableDetailViewModel">
+  <DockPanel>
+    <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,8">
+      <TextBlock Text="{Binding Title}" Classes="h3" />
+      <Border Classes="banner info" IsVisible="{Binding HasExistingNote}">
+        <TextBlock Text="{Binding ExistingNote}" TextWrapping="Wrap" />
+      </Border>
+    </StackPanel>
+    <Expander DockPanel.Dock="Bottom" Header="DDL" Margin="0,8,0,0" HorizontalAlignment="Stretch">
+      <TextBox Name="Ddl" Text="{Binding Ddl}" IsReadOnly="True" Classes="mono" TextWrapping="NoWrap" AcceptsReturn="True" MaxHeight="260" />
+    </Expander>
+    <StackPanel DockPanel.Dock="Right" Width="320" Spacing="4" Margin="12,0,0,0">
+      <TextBlock Text="Primary key" Classes="label" />
+      <TextBlock Text="{Binding PrimaryKeyText}" Classes="mono" TextWrapping="Wrap" />
+      <TextBlock Text="Indexes" Classes="label" Margin="0,8,0,0" />
+      <ItemsControl ItemsSource="{Binding Indexes}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="x:String">
+            <TextBlock Text="{Binding}" Classes="mono" TextWrapping="Wrap" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <TextBlock Text="Foreign keys" Classes="label" Margin="0,8,0,0" />
+      <ItemsControl ItemsSource="{Binding ForeignKeys}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="x:String">
+            <TextBlock Text="{Binding}" Classes="mono" TextWrapping="Wrap" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+    <DataGrid Name="ColumnMappings" ItemsSource="{Binding Columns}" AutoGenerateColumns="False" IsReadOnly="True">
+      <DataGrid.Columns>
+        <DataGridTextColumn Header="Source column" Binding="{Binding SourceColumn, Mode=OneWay}" x:DataType="vm:ColumnMappingRowViewModel" />
+        <DataGridTextColumn Header="Source type" Binding="{Binding SourceType, Mode=OneWay}" x:DataType="vm:ColumnMappingRowViewModel" />
+        <DataGridTextColumn Header="Target column" Binding="{Binding TargetColumn, Mode=OneWay}" x:DataType="vm:ColumnMappingRowViewModel" />
+        <DataGridTextColumn Header="Target type" Binding="{Binding TargetType, Mode=OneWay}" x:DataType="vm:ColumnMappingRowViewModel" />
+        <DataGridTextColumn Header="Null" Binding="{Binding NullText, Mode=OneWay}" x:DataType="vm:ColumnMappingRowViewModel" />
+        <DataGridTextColumn Header="Identity" Binding="{Binding Identity, Mode=OneWay}" x:DataType="vm:ColumnMappingRowViewModel" />
+        <DataGridTextColumn Header="Default" Binding="{Binding Default, Mode=OneWay}" x:DataType="vm:ColumnMappingRowViewModel" />
+        <DataGridTemplateColumn Header="Issues" x:DataType="vm:ColumnMappingRowViewModel">
+          <DataGridTemplateColumn.CellTemplate>
+            <DataTemplate x:DataType="vm:ColumnMappingRowViewModel">
+              <Border Classes="chip" IsVisible="{Binding HasIssue}" ToolTip.Tip="{Binding IssueText}" HorizontalAlignment="Left" Margin="6,0">
+                <TextBlock Text="see note" FontSize="12" />
+              </Border>
+            </DataTemplate>
+          </DataGridTemplateColumn.CellTemplate>
+        </DataGridTemplateColumn>
+      </DataGrid.Columns>
+    </DataGrid>
+  </DockPanel>
+</UserControl>

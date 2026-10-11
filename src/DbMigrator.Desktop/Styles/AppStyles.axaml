@@ -1,0 +1,179 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Styles.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="RailBrush" Color="#F3F4F6" />
+          <SolidColorBrush x:Key="CardBrush" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="CardBorderBrush" Color="#E2E4E8" />
+          <SolidColorBrush x:Key="MutedBrush" Color="#5B6270" />
+          <SolidColorBrush x:Key="ErrorBrush" Color="#B42318" />
+          <SolidColorBrush x:Key="ErrorBackgroundBrush" Color="#FEF3F2" />
+          <SolidColorBrush x:Key="WarningBrush" Color="#93370D" />
+          <SolidColorBrush x:Key="WarningBackgroundBrush" Color="#FFFAEB" />
+          <SolidColorBrush x:Key="SuccessBrush" Color="#067647" />
+          <SolidColorBrush x:Key="SuccessBackgroundBrush" Color="#ECFDF3" />
+          <SolidColorBrush x:Key="InfoBackgroundBrush" Color="#EFF4FF" />
+          <SolidColorBrush x:Key="DangerBrush" Color="#C01048" />
+          <SolidColorBrush x:Key="OverlayBrush" Color="#99101828" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="RailBrush" Color="#1B1D22" />
+          <SolidColorBrush x:Key="CardBrush" Color="#24262C" />
+          <SolidColorBrush x:Key="CardBorderBrush" Color="#3A3D45" />
+          <SolidColorBrush x:Key="MutedBrush" Color="#A3A9B5" />
+          <SolidColorBrush x:Key="ErrorBrush" Color="#FDA29B" />
+          <SolidColorBrush x:Key="ErrorBackgroundBrush" Color="#3A1714" />
+          <SolidColorBrush x:Key="WarningBrush" Color="#FEC84B" />
+          <SolidColorBrush x:Key="WarningBackgroundBrush" Color="#3A2A10" />
+          <SolidColorBrush x:Key="SuccessBrush" Color="#75E0A7" />
+          <SolidColorBrush x:Key="SuccessBackgroundBrush" Color="#0F2E1F" />
+          <SolidColorBrush x:Key="InfoBackgroundBrush" Color="#172240" />
+          <SolidColorBrush x:Key="DangerBrush" Color="#F63D68" />
+          <SolidColorBrush x:Key="OverlayBrush" Color="#CC000000" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+      <FontFamily x:Key="MonoFont">Cascadia Mono, Consolas, Menlo, DejaVu Sans Mono, monospace</FontFamily>
+    </ResourceDictionary>
+  </Styles.Resources>
+
+  <!-- Text -->
+  <Style Selector="TextBlock.h1">
+    <Setter Property="FontSize" Value="24" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="TextBlock.h2">
+    <Setter Property="FontSize" Value="18" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="TextBlock.h3">
+    <Setter Property="FontSize" Value="15" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="TextBlock.label">
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="TextBlock.muted, SelectableTextBlock.muted">
+    <Setter Property="Foreground" Value="{DynamicResource MutedBrush}" />
+  </Style>
+  <Style Selector="TextBlock.help">
+    <Setter Property="Foreground" Value="{DynamicResource MutedBrush}" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+  <Style Selector="TextBlock.error, SelectableTextBlock.error">
+    <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+  <Style Selector="TextBlock.warning">
+    <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />
+  </Style>
+  <Style Selector="TextBlock.success">
+    <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
+  </Style>
+  <Style Selector="TextBox.mono">
+    <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
+    <Setter Property="FontSize" Value="12" />
+  </Style>
+  <Style Selector="TextBlock.mono">
+    <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
+    <Setter Property="FontSize" Value="12" />
+  </Style>
+
+  <!-- Surfaces -->
+  <Style Selector="Border.card">
+    <Setter Property="Background" Value="{DynamicResource CardBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="16" />
+  </Style>
+  <Style Selector="Border.banner">
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="12,10" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+  <Style Selector="Border.banner.error">
+    <Setter Property="Background" Value="{DynamicResource ErrorBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}" />
+  </Style>
+  <Style Selector="Border.banner.warning">
+    <Setter Property="Background" Value="{DynamicResource WarningBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}" />
+  </Style>
+  <Style Selector="Border.banner.success">
+    <Setter Property="Background" Value="{DynamicResource SuccessBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
+  </Style>
+  <Style Selector="Border.banner.info">
+    <Setter Property="Background" Value="{DynamicResource InfoBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}" />
+  </Style>
+  <Style Selector="Border.dialog">
+    <Setter Property="Background" Value="{DynamicResource CardBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Padding" Value="24" />
+    <Setter Property="MinWidth" Value="420" />
+    <Setter Property="MaxWidth" Value="680" />
+  </Style>
+  <Style Selector="Border.chip">
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Padding" Value="8,2" />
+    <Setter Property="Background" Value="{DynamicResource InfoBackgroundBrush}" />
+  </Style>
+
+  <!-- Step rail -->
+  <Style Selector="Border.rail">
+    <Setter Property="Background" Value="{DynamicResource RailBrush}" />
+  </Style>
+  <Style Selector="Button.rail-item">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="HorizontalContentAlignment" Value="Left" />
+    <Setter Property="Padding" Value="12,8" />
+    <Setter Property="Margin" Value="8,2" />
+    <Setter Property="CornerRadius" Value="6" />
+  </Style>
+  <Style Selector="Button.rail-item.current">
+    <Setter Property="Background" Value="{DynamicResource CardBrush}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="Button.rail-item:disabled /template/ ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+  <!-- The current step is not a link (it is disabled), but must not look locked. -->
+  <Style Selector="Button.rail-item.current:disabled /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource CardBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+  </Style>
+
+  <!-- Tabs -->
+  <Style Selector="TabItem">
+    <Setter Property="FontSize" Value="15" />
+    <Setter Property="MinHeight" Value="36" />
+    <Setter Property="Padding" Value="12,4" />
+  </Style>
+
+  <!-- Buttons -->
+  <Style Selector="Button.danger">
+    <Setter Property="Background" Value="{DynamicResource DangerBrush}" />
+    <Setter Property="Foreground" Value="White" />
+  </Style>
+  <Style Selector="Button.link">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Foreground" Value="{DynamicResource SystemAccentColor}" />
+  </Style>
+
+  <!-- Grids -->
+  <Style Selector="DataGrid">
+    <Setter Property="GridLinesVisibility" Value="Horizontal" />
+    <Setter Property="HeadersVisibility" Value="Column" />
+  </Style>
+  <Style Selector="TextBlock.right">
+    <Setter Property="HorizontalAlignment" Value="Right" />
+  </Style>
+</Styles>

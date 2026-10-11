@@ -1,0 +1,126 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DbMigrator.Desktop.ViewModels"
+             x:Class="DbMigrator.Desktop.Views.Steps.TablesStepView"
+             x:DataType="vm:TablesStepViewModel">
+  <Grid ColumnDefinitions="*,16,360">
+    <DockPanel>
+      <!-- Summary and toolbar -->
+      <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
+        <StackPanel Orientation="Horizontal" Spacing="12">
+          <TextBlock Name="SelectionSummary" Text="{Binding SummaryText}" VerticalAlignment="Center" />
+          <Button Name="Reread" Classes="link" Content="Re-read catalog" Command="{Binding RereadCatalogCommand}" VerticalAlignment="Center" />
+          <Button Content="Cancel" Command="{Binding RereadCatalogCancelCommand}" IsVisible="{Binding RereadCatalogCommand.IsRunning}" />
+        </StackPanel>
+        <TextBlock Name="RereadNotice" Text="{Binding RereadNotice}" Classes="help"
+                   IsVisible="{Binding RereadNotice, Converter={x:Static ObjectConverters.IsNotNull}}" />
+        <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="8">
+          <TextBox Name="TableFilter" Text="{Binding FilterText}" PlaceholderText="Filter: Orders, sales.*, Order*" AutomationProperties.Name="Filter tables" />
+          <ComboBox Grid.Column="1" Name="SchemaFilter" ItemsSource="{Binding Schemas}" SelectedItem="{Binding SchemaFilter}" MinWidth="140"
+                    AutomationProperties.Name="Schema" />
+          <ComboBox Grid.Column="2" Name="ShowFilter" ItemsSource="{Binding ShowOptions}" SelectedItem="{Binding ShowFilter}" MinWidth="140"
+                    DisplayMemberBinding="{Binding Label, x:DataType=vm:ShowOption, Mode=OneWay}" AutomationProperties.Name="Show" />
+          <Button Grid.Column="3" Name="SelectShown" Content="Select shown" Command="{Binding SelectShownCommand}" />
+          <Button Grid.Column="4" Name="ClearShown" Content="Clear shown" Command="{Binding ClearShownCommand}" />
+        </Grid>
+      </StackPanel>
+
+      <!-- Foreign keys into tables left out -->
+      <Border DockPanel.Dock="Bottom" Classes="banner warning" Margin="0,8,0,0" IsVisible="{Binding HasMissingReferences}">
+        <DockPanel>
+          <Button DockPanel.Dock="Right" Name="SelectReferenced" Content="Select them too" Command="{Binding SelectReferencedCommand}" Margin="8,0,0,0" />
+          <TextBlock Name="MissingReferences" Text="{Binding MissingReferencesText}" TextWrapping="Wrap" VerticalAlignment="Center" />
+        </DockPanel>
+      </Border>
+
+      <DataGrid Name="TablesGrid" ItemsSource="{Binding VisibleRows}" AutoGenerateColumns="False" IsReadOnly="True"
+                CanUserSortColumns="True" FrozenColumnCount="2">
+        <DataGrid.Columns>
+          <DataGridTemplateColumn Header="" Width="44" x:DataType="vm:TableSelectionRowViewModel" CanUserSort="False">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate x:DataType="vm:TableSelectionRowViewModel">
+                <CheckBox IsChecked="{Binding IsSelected}" HorizontalAlignment="Center" AutomationProperties.Name="{Binding SelectionLabel}" />
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+          <DataGridTextColumn Header="Table" Binding="{Binding FullName, Mode=OneWay}" x:DataType="vm:TableSelectionRowViewModel" Width="2*" MinWidth="140" />
+          <DataGridTextColumn Header="Rows (est.)" Binding="{Binding RowsText, Mode=OneWay}" SortMemberPath="SortRows" x:DataType="vm:TableSelectionRowViewModel" />
+          <DataGridTextColumn Header="Columns" Binding="{Binding ColumnCount, Mode=OneWay}" x:DataType="vm:TableSelectionRowViewModel" />
+          <DataGridTextColumn Header="Keys" Binding="{Binding KeysText, Mode=OneWay}" x:DataType="vm:TableSelectionRowViewModel" />
+          <DataGridTemplateColumn Header="In target" x:DataType="vm:TableSelectionRowViewModel" SortMemberPath="ExistsInTarget">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate x:DataType="vm:TableSelectionRowViewModel">
+                <Border Classes="chip" IsVisible="{Binding ExistsInTarget}" ToolTip.Tip="{Binding InTargetHint}" HorizontalAlignment="Left" Margin="6,0">
+                  <TextBlock Text="{Binding InTargetText}" FontSize="12" />
+                </Border>
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+          <DataGridTextColumn Header="Target name" Binding="{Binding TargetName, Mode=OneWay}" x:DataType="vm:TableSelectionRowViewModel" Width="2*" MinWidth="140" />
+          <DataGridTextColumn Header="Notes" Binding="{Binding Notes, Mode=OneWay}" x:DataType="vm:TableSelectionRowViewModel" Width="2*" MinWidth="140" />
+        </DataGrid.Columns>
+      </DataGrid>
+    </DockPanel>
+
+    <!-- Options -->
+    <ScrollViewer Grid.Column="2">
+      <StackPanel Spacing="18" Margin="0,0,8,0">
+        <StackPanel Spacing="8">
+          <TextBlock Classes="h3" Text="Names in the target" />
+          <ItemsControl Name="NamingChoices" ItemsSource="{Binding NamingChoices}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:NamingChoiceViewModel">
+                <StackPanel Margin="0,0,0,6">
+                  <RadioButton GroupName="Naming" IsChecked="{Binding IsSelected}">
+                    <TextBlock Text="{Binding Label}" />
+                  </RadioButton>
+                  <TextBlock Text="{Binding Examples}" Classes="help mono" Margin="28,0,0,0" />
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+
+        <StackPanel Spacing="8">
+          <TextBlock Classes="h3" Text="Schemas" />
+          <ItemsControl Name="SchemaMappings" ItemsSource="{Binding SchemaMappings}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:SchemaMappingRowViewModel">
+                <StackPanel Margin="0,0,0,6">
+                  <Grid ColumnDefinitions="*,24,*" >
+                    <TextBlock VerticalAlignment="Center">
+                      <Run Text="{Binding SourceSchema, Mode=OneWay}" FontWeight="SemiBold" />
+                      <Run Text="{Binding TableCount, StringFormat=' ({0})', Mode=OneWay}" Foreground="{DynamicResource MutedBrush}" />
+                    </TextBlock>
+                    <TextBlock Grid.Column="1" Text="→" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                    <TextBox Grid.Column="2" Text="{Binding TargetSchema}" AutomationProperties.Name="{Binding SourceSchema, StringFormat='Target schema for {0}'}" />
+                  </Grid>
+                  <TextBlock Text="{Binding Error}" Classes="error" IsVisible="{Binding HasError}" />
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+
+        <StackPanel Spacing="10">
+          <TextBlock Classes="h3" Text="What to create" />
+          <StackPanel>
+            <ToggleSwitch Name="CopyData" IsChecked="{Binding CopyData}" OnContent="Copy data" OffContent="Copy data" />
+            <TextBlock Classes="help" Text="Off: tables, keys and indexes only." />
+          </StackPanel>
+          <StackPanel>
+            <ToggleSwitch Name="CreateIndexes" IsChecked="{Binding CreateIndexes}" OnContent="Indexes and unique constraints" OffContent="Indexes and unique constraints" />
+            <TextBlock Classes="help" Text="Primary keys are always created." />
+          </StackPanel>
+          <StackPanel>
+            <ToggleSwitch Name="CreateForeignKeys" IsChecked="{Binding CreateForeignKeys}" OnContent="Foreign keys" OffContent="Foreign keys" />
+          </StackPanel>
+          <StackPanel>
+            <ToggleSwitch Name="VerifyRowCounts" IsChecked="{Binding VerifyRowCounts}" OnContent="Check row counts after copying" OffContent="Check row counts after copying" />
+            <TextBlock Classes="help" Text="Recommended: counts every table on both sides at the end." />
+          </StackPanel>
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

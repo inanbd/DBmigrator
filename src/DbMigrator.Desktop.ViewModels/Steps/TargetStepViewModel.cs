@@ -29,6 +29,8 @@ public sealed partial class TargetStepViewModel(ShellServices services, Migratio
 
     public override string Subtitle => "The database to copy into, or no database at all to get a SQL script.";
 
+    public override string ConnectLabel => "Connect";
+
     protected override string IdleText => "Only looks at what exists. Nothing is changed until you start the run.";
 
     protected override string ConnectingText => "Connecting and looking at the target...";

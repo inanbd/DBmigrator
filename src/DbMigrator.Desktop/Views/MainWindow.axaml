@@ -1,0 +1,89 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DbMigrator.Desktop.ViewModels"
+        x:Class="DbMigrator.Desktop.Views.MainWindow"
+        x:DataType="vm:ShellViewModel"
+        Width="1200" Height="800" MinWidth="1000" MinHeight="680"
+        WindowStartupLocation="CenterScreen"
+        Title="DbMigrator">
+  <Panel>
+    <DockPanel Name="Main" IsEnabled="{Binding !Dialogs.IsOpen}">
+      <!-- The steps. State is a word as well as a style, never colour alone. -->
+      <Border DockPanel.Dock="Left" Width="220" Classes="rail">
+        <DockPanel>
+          <TextBlock DockPanel.Dock="Top" Text="DbMigrator" Classes="h2" Margin="20,20,20,16" />
+          <StackPanel DockPanel.Dock="Bottom" Spacing="4" Margin="20,12">
+            <TextBlock Classes="muted" FontSize="12" Text="{Binding Version, StringFormat='Version {0}'}" />
+            <Button Name="OpenLogFolder" Classes="link" Content="Open log folder" Click="OnOpenLogFolder"
+                    ToolTip.Tip="{Binding LogFolder}" />
+          </StackPanel>
+          <ItemsControl Name="StepRail" ItemsSource="{Binding Steps}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:WizardStepViewModel">
+                <Button Classes="rail-item" Classes.current="{Binding IsCurrent}"
+                        IsVisible="{Binding IsApplicable}"
+                        Command="{Binding $parent[Window].((vm:ShellViewModel)DataContext).GoToStepCommand}"
+                        CommandParameter="{Binding}"
+                        AutomationProperties.Name="{Binding Title, StringFormat='Go to {0}'}">
+                  <Grid ColumnDefinitions="28,*">
+                    <TextBlock Text="{Binding Number}" VerticalAlignment="Top" Classes="muted" />
+                    <StackPanel Grid.Column="1">
+                      <TextBlock Text="{Binding Title}" />
+                      <TextBlock Text="{Binding StateText}" FontSize="12" Classes="muted" />
+                    </StackPanel>
+                  </Grid>
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </DockPanel>
+      </Border>
+
+      <!-- Header -->
+      <StackPanel DockPanel.Dock="Top" Margin="24,20,24,12" Spacing="2">
+        <TextBlock Name="StepTitle" Classes="h1" Text="{Binding Current.Title}" />
+        <TextBlock Classes="muted" Text="{Binding Current.Subtitle}" TextWrapping="Wrap" />
+      </StackPanel>
+
+      <!-- Footer -->
+      <Border DockPanel.Dock="Bottom" Padding="24,12" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource CardBorderBrush}"
+              IsVisible="{Binding Current.ShowsFooter}">
+        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+          <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <ProgressBar IsIndeterminate="True" Width="80" IsVisible="{Binding Current.IsBusy}" />
+            <TextBlock Name="BusyText" Text="{Binding Current.BusyText}" IsVisible="{Binding Current.IsBusy}" Classes="muted" />
+            <TextBlock Name="BlockingReason" Text="{Binding Current.BlockingReason}" IsVisible="{Binding !Current.IsBusy}"
+                       Classes="muted" TextWrapping="Wrap" />
+          </StackPanel>
+          <Button Name="BackButton" Grid.Column="1" Content="Back" Command="{Binding BackCommand}" MinWidth="90" />
+          <Button Name="NextButton" Grid.Column="2" Classes="accent" Content="{Binding Current.NextLabel}"
+                  Command="{Binding NextCommand}" MinWidth="120" />
+        </Grid>
+      </Border>
+
+      <!-- Error banner -->
+      <Border DockPanel.Dock="Top" Name="ErrorBanner" Classes="banner error" Margin="24,0,24,12">
+        <Border.IsVisible>
+          <MultiBinding Converter="{x:Static BoolConverters.And}">
+            <Binding Path="Current.HasError" />
+            <Binding Path="Current.ShowsErrorBanner" />
+          </MultiBinding>
+        </Border.IsVisible>
+        <DockPanel>
+          <Button DockPanel.Dock="Right" Content="Copy details" Command="{Binding CopyErrorCommand}" VerticalAlignment="Top" />
+          <StackPanel Spacing="4">
+            <SelectableTextBlock Name="ErrorText" Text="{Binding Current.Error}" Classes="error" FontWeight="SemiBold" />
+            <Expander Header="Details" IsVisible="{Binding Current.ErrorDetails, Converter={x:Static ObjectConverters.IsNotNull}}">
+              <SelectableTextBlock Text="{Binding Current.ErrorDetails}" Classes="mono" TextWrapping="Wrap" />
+            </Expander>
+          </StackPanel>
+        </DockPanel>
+      </Border>
+
+      <!-- The current step, through the view locator -->
+      <TransitioningContentControl Name="StepHost" Content="{Binding Current}" PageTransition="{x:Null}" Margin="24,0,24,12" />
+    </DockPanel>
+
+    <ContentControl Name="DialogOverlay" Content="{Binding Dialogs}" />
+  </Panel>
+</Window>

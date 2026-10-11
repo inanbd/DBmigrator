@@ -113,7 +113,7 @@ public abstract partial class ConnectionStepViewModel : WizardStepViewModel
     public partial string? ProfileNotice { get; private set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsConnected), nameof(StatusText))]
+    [NotifyPropertyChangedFor(nameof(IsConnected), nameof(IsFailed), nameof(StatusText))]
     public partial ConnectionStatus Status { get; private set; }
 
     public bool IsConnected => Status == ConnectionStatus.Connected;
@@ -138,6 +138,14 @@ public abstract partial class ConnectionStepViewModel : WizardStepViewModel
     };
 
     protected abstract string IdleText { get; }
+
+    /// <summary>The text of the Connect button.</summary>
+    public abstract string ConnectLabel { get; }
+
+    /// <summary>The status card shows the error with its suggestions, so the window does not repeat it.</summary>
+    public override bool ShowsErrorBanner => false;
+
+    public bool IsFailed => Status == ConnectionStatus.Failed;
 
     public override bool CanAdvance => Status == ConnectionStatus.Connected && !IsBusy && Editor?.Fingerprint == _connectedFingerprint;
 

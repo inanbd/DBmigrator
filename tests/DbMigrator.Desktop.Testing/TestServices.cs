@@ -17,12 +17,12 @@ public sealed class TestServices
     public static readonly QualifiedName C = new("dbo", "C");
     public static readonly QualifiedName D = new("dbo", "D");
 
-    private TestServices(SourceSchema schema)
+    private TestServices(SourceSchema schema, IReadOnlyList<IDatabaseProvider> more)
     {
         SourceDb = new InMemorySourceDatabase(schema) { DefaultRowCount = 5 };
         TargetDb = new InMemoryTargetDatabase();
         Provider = new InMemoryProvider(SourceDb, TargetDb);
-        Catalog = new ProviderCatalog([Provider]);
+        Catalog = new ProviderCatalog([Provider, .. more]);
         Time = new ManualTimeProvider();
         Scheduler = new ManualUiScheduler();
         DialogHost = new DialogHostViewModel();
@@ -81,7 +81,8 @@ public sealed class TestServices
     /// Four tables, like the engine tests: D has a foreign key to C. Five rows each.
     /// <paramref name="schema"/> replaces them.
     /// </summary>
-    public static TestServices Create(SourceSchema? schema = null) => new(schema ?? DefaultSchema());
+    /// <param name="more">Further engines offered after the in-memory one, e.g. to show a real connection form.</param>
+    public static TestServices Create(SourceSchema? schema = null, params IDatabaseProvider[] more) => new(schema ?? DefaultSchema(), more);
 
     public static SourceSchema DefaultSchema()
     {
@@ -93,14 +94,16 @@ public sealed class TestServices
     }
 
     /// <summary>Every fake records I/O that reaches it on the fake UI thread.</summary>
-    public void ForbidUiThread()
+    public void ForbidUiThread() => ForbidThread(() => UiThreadContext.IsOnUiThread);
+
+    /// <summary>Every fake records I/O that arrives on a thread for which <paramref name="isForbidden"/> is true.</summary>
+    public void ForbidThread(Func<bool> isForbidden)
     {
-        static bool OnUi() => UiThreadContext.IsOnUiThread;
-        SourceDb.Thread.IsForbidden = OnUi;
-        TargetDb.Thread.IsForbidden = OnUi;
-        Credentials.Thread.IsForbidden = OnUi;
-        Profiles.Thread.IsForbidden = OnUi;
-        Settings.Thread.IsForbidden = OnUi;
-        Reports.Thread.IsForbidden = OnUi;
+        SourceDb.Thread.IsForbidden = isForbidden;
+        TargetDb.Thread.IsForbidden = isForbidden;
+        Credentials.Thread.IsForbidden = isForbidden;
+        Profiles.Thread.IsForbidden = isForbidden;
+        Settings.Thread.IsForbidden = isForbidden;
+        Reports.Thread.IsForbidden = isForbidden;
     }
 }

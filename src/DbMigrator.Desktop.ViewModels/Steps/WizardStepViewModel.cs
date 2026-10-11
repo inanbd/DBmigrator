@@ -68,8 +68,14 @@ public abstract partial class WizardStepViewModel : ObservableObject
     public partial int Number { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(StateText))]
+    [NotifyPropertyChangedFor(nameof(StateText), nameof(IsCurrent), nameof(IsDone), nameof(IsLocked))]
     public partial StepState State { get; set; }
+
+    public bool IsCurrent => State == StepState.Current;
+
+    public bool IsDone => State == StepState.Done;
+
+    public bool IsLocked => State == StepState.Locked;
 
     public string StateText => State switch
     {
@@ -104,6 +110,9 @@ public abstract partial class WizardStepViewModel : ObservableObject
     public virtual bool IsApplicable => true;
 
     public virtual bool ShowsFooter => true;
+
+    /// <summary>Whether the window shows <see cref="Error"/> in its banner; steps that show it themselves turn this off.</summary>
+    public virtual bool ShowsErrorBanner => true;
 
     protected IWizardNavigator Navigator => _navigator ?? throw new InvalidOperationException("The step is not attached to a shell.");
 

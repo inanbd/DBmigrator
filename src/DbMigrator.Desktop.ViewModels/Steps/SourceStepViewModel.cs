@@ -36,6 +36,8 @@ public sealed partial class SourceStepViewModel(ShellServices services, Migratio
 
     public string Advice { get; } = "Copy from a database nobody is writing to, such as a restored backup or a snapshot. Rows written during the copy can make the final row counts differ.";
 
+    public override string ConnectLabel => "Connect and read catalog";
+
     protected override string IdleText => "Reads table definitions only. Nothing is changed.";
 
     protected override string ConnectingText => "Connecting and reading the catalog...";

@@ -1,0 +1,52 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DbMigrator.Desktop.ViewModels"
+             x:Class="DbMigrator.Desktop.Views.Parts.ConnectionFormView"
+             x:DataType="vm:ConnectionStepViewModel">
+  <StackPanel Spacing="14">
+    <Border Classes="banner warning" IsVisible="{Binding ProfileNotice, Converter={x:Static ObjectConverters.IsNotNull}}">
+      <TextBlock Name="ProfileNotice" Text="{Binding ProfileNotice}" TextWrapping="Wrap" />
+    </Border>
+
+    <StackPanel Spacing="4">
+      <TextBlock Text="Engine" Classes="label" />
+      <ComboBox Name="ProviderPicker" ItemsSource="{Binding Providers}" SelectedItem="{Binding SelectedProvider}" HorizontalAlignment="Stretch"
+                DisplayMemberBinding="{Binding DisplayName, x:DataType=vm:ProviderOption, Mode=OneWay}" AutomationProperties.Name="Engine" />
+    </StackPanel>
+
+    <StackPanel Spacing="4">
+      <TextBlock Text="Saved connection" Classes="label" />
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+        <ComboBox Name="ProfilePicker" ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}" PlaceholderText="New connection"
+                  HorizontalAlignment="Stretch" AutomationProperties.Name="Saved connection">
+          <ComboBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:ProfileListItemViewModel">
+              <StackPanel>
+                <TextBlock Text="{Binding Name}" />
+                <TextBlock Text="{Binding Description}" Classes="help" />
+              </StackPanel>
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+        <Button Name="SaveProfile" Grid.Column="1" Content="Save..." Command="{Binding SaveProfileCommand}" />
+        <Button Name="DeleteProfile" Grid.Column="2" Content="Delete" Command="{Binding DeleteProfileCommand}" />
+      </Grid>
+    </StackPanel>
+
+    <ContentControl Name="Editor" Content="{Binding Editor}" />
+
+    <StackPanel Spacing="2">
+      <CheckBox Name="RememberPassword" IsChecked="{Binding RememberPassword}" IsEnabled="{Binding CanRememberPassword}"
+                Content="{Binding CredentialStoreName, StringFormat='Remember the password in {0}'}" />
+      <TextBlock Name="RememberPasswordNote" Text="{Binding RememberPasswordNote}" Classes="help"
+                 IsVisible="{Binding RememberPasswordNote, Converter={x:Static ObjectConverters.IsNotNull}}" />
+    </StackPanel>
+
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Button Name="TestButton" Content="Test connection" Command="{Binding TestConnectionCommand}" />
+      <Button Name="ConnectButton" Classes="accent" Content="{Binding ConnectLabel}" Command="{Binding ConnectCommand}" IsDefault="{Binding !IsConnected}" />
+      <Button Name="CancelConnect" Content="Cancel" Command="{Binding ConnectCancelCommand}" IsVisible="{Binding ConnectCommand.IsRunning}" />
+      <Button Name="CancelTest" Content="Cancel" Command="{Binding TestConnectionCancelCommand}" IsVisible="{Binding TestConnectionCommand.IsRunning}" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

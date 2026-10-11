@@ -23,7 +23,7 @@ public sealed class WizardDriver(TestServices test)
         editor.AllFields.First(f => string.Equals(f.Keyword, keyword, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>Enters the first step, as the window does when it opens.</summary>
-    public Task StartAsync() => Shell.GoToAsync(WizardStepKind.Source);
+    public Task StartAsync() => Shell.StartAsync();
 
     public async Task ConnectSourceAsync()
     {

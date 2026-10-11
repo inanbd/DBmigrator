@@ -1,0 +1,128 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DbMigrator.Desktop.ViewModels"
+             xmlns:diag="using:DbMigrator.Core.Diagnostics"
+             xmlns:parts="using:DbMigrator.Desktop.Views.Parts"
+             x:Class="DbMigrator.Desktop.Views.Steps.ReviewStepView"
+             x:DataType="vm:ReviewStepViewModel">
+  <DockPanel>
+    <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
+      <StackPanel Orientation="Horizontal" Spacing="12">
+        <TextBlock Name="PlanHeader" Text="{Binding HeaderText}" VerticalAlignment="Center" />
+        <ProgressBar IsIndeterminate="True" Width="80" IsVisible="{Binding IsPlanning}" />
+        <TextBlock Text="Updating the plan..." Classes="muted" IsVisible="{Binding IsPlanning}" VerticalAlignment="Center" />
+      </StackPanel>
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Button Content="{Binding Issues.ErrorsLabel}" Command="{Binding ShowIssuesCommand}" CommandParameter="{x:Static diag:IssueSeverity.Error}" />
+        <Button Content="{Binding Issues.WarningsLabel}" Command="{Binding ShowIssuesCommand}" CommandParameter="{x:Static diag:IssueSeverity.Warning}" />
+        <Button Content="{Binding Issues.NotesLabel}" Command="{Binding ShowIssuesCommand}" CommandParameter="{x:Static diag:IssueSeverity.Info}" />
+        <TextBlock Text="{Binding SchemasText}" VerticalAlignment="Center" Classes="muted" />
+      </StackPanel>
+      <Border Classes="banner error" IsVisible="{Binding ErrorBannerText, Converter={x:Static ObjectConverters.IsNotNull}}">
+        <TextBlock Name="PlanErrors" Text="{Binding ErrorBannerText}" TextWrapping="Wrap" />
+      </Border>
+      <Border Classes="banner warning" IsVisible="{Binding HasPreflightDifferences}">
+        <StackPanel Spacing="4">
+          <TextBlock Text="The target changed since you reviewed it:" Classes="label" />
+          <ItemsControl Name="PreflightDifferences" ItemsSource="{Binding PreflightDifferences}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="x:String">
+                <TextBlock Text="{Binding StringFormat='• {0}'}" TextWrapping="Wrap" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+
+    <TabControl Name="ReviewTabs" SelectedIndex="{Binding SelectedTab}">
+      <TabItem Header="{Binding DecisionsHeader}">
+        <DockPanel>
+          <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,8" IsVisible="{Binding HasConflicts}">
+            <TextBlock Text="Set every undecided table to" VerticalAlignment="Center" />
+            <ComboBox Name="BulkChoice" ItemsSource="{Binding BulkChoices}" SelectedItem="{Binding BulkChoice}" MinWidth="200"
+                      DisplayMemberBinding="{Binding Label, x:DataType=vm:ConflictChoice, Mode=OneWay}" AutomationProperties.Name="Choice for every undecided table" />
+            <Button Name="ApplyToUndecided" Content="Apply" Command="{Binding ApplyToUndecidedCommand}" />
+          </StackPanel>
+          <TextBlock DockPanel.Dock="Top" Classes="muted" Margin="0,8" IsVisible="{Binding !HasConflicts}"
+                     Text="No selected table exists in the target yet: every table will be created." />
+          <DataGrid Name="ConflictsGrid" ItemsSource="{Binding Conflicts}" AutoGenerateColumns="False" IsReadOnly="True">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Source table" Binding="{Binding Source, Mode=OneWay}" x:DataType="vm:ConflictRowViewModel" />
+              <DataGridTextColumn Header="Target table" Binding="{Binding Target, Mode=OneWay}" x:DataType="vm:ConflictRowViewModel" />
+              <DataGridTextColumn Header="Rows (est.)" Binding="{Binding RowsText, Mode=OneWay}" x:DataType="vm:ConflictRowViewModel" />
+              <DataGridTemplateColumn Header="Your choice" Width="200" x:DataType="vm:ConflictRowViewModel">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate x:DataType="vm:ConflictRowViewModel">
+                    <ComboBox ItemsSource="{Binding Options}" SelectedItem="{Binding Choice}" HorizontalAlignment="Stretch"
+                              DisplayMemberBinding="{Binding Label, x:DataType=vm:ConflictChoice, Mode=OneWay}"
+                              AutomationProperties.Name="{Binding Target, StringFormat='What to do with {0}'}" />
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+              <DataGridTemplateColumn Header="What it means" Width="*" MinWidth="140" x:DataType="vm:ConflictRowViewModel">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate x:DataType="vm:ConflictRowViewModel">
+                    <TextBlock Text="{Binding Explanation}" TextWrapping="Wrap" Margin="8,4" VerticalAlignment="Center" />
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+            </DataGrid.Columns>
+          </DataGrid>
+        </DockPanel>
+      </TabItem>
+
+      <TabItem Header="Tables">
+        <Grid RowDefinitions="*,6,*">
+          <DataGrid Name="PlanTablesGrid" ItemsSource="{Binding PlanTables}" SelectedItem="{Binding SelectedPlanTable}"
+                    AutoGenerateColumns="False" IsReadOnly="True" CanUserSortColumns="True">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="#" Binding="{Binding Index, Mode=OneWay}" x:DataType="vm:PlanTableRowViewModel" />
+              <DataGridTextColumn Header="Source" Binding="{Binding Source, Mode=OneWay}" x:DataType="vm:PlanTableRowViewModel" Width="*" MinWidth="140" />
+              <DataGridTextColumn Header="Target" Binding="{Binding Target, Mode=OneWay}" x:DataType="vm:PlanTableRowViewModel" Width="*" MinWidth="140" />
+              <DataGridTextColumn Header="Action" Binding="{Binding ActionText, Mode=OneWay}" x:DataType="vm:PlanTableRowViewModel" />
+              <DataGridTextColumn Header="Rows (est.)" Binding="{Binding RowsText, Mode=OneWay}" x:DataType="vm:PlanTableRowViewModel" />
+              <DataGridTextColumn Header="Columns" Binding="{Binding ColumnCount, Mode=OneWay}" x:DataType="vm:PlanTableRowViewModel" />
+              <DataGridTextColumn Header="Issues" Binding="{Binding IssuesText, Mode=OneWay}" x:DataType="vm:PlanTableRowViewModel" />
+            </DataGrid.Columns>
+          </DataGrid>
+          <GridSplitter Grid.Row="1" ResizeDirection="Rows" />
+          <ContentControl Grid.Row="2" Name="TableDetail" Content="{Binding Detail}" />
+        </Grid>
+      </TabItem>
+
+      <TabItem Header="Type mappings">
+        <Grid ColumnDefinitions="2*,8,*">
+          <DataGrid Name="TypeMappingsGrid" ItemsSource="{Binding TypeMappings}" SelectedItem="{Binding SelectedTypeMapping}"
+                    AutoGenerateColumns="False" IsReadOnly="True" CanUserSortColumns="True">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Source type" Binding="{Binding SourcePattern, Mode=OneWay}" x:DataType="vm:TypeMappingRowViewModel" />
+              <DataGridTextColumn Header="Target type" Binding="{Binding TargetPattern, Mode=OneWay}" x:DataType="vm:TypeMappingRowViewModel" />
+              <DataGridTextColumn Header="Columns" Binding="{Binding ColumnCount, Mode=OneWay}" x:DataType="vm:TypeMappingRowViewModel" />
+              <DataGridTextColumn Header="Worst" Binding="{Binding SeverityText, Mode=OneWay}" x:DataType="vm:TypeMappingRowViewModel" />
+              <DataGridTextColumn Header="Note" Binding="{Binding Note, Mode=OneWay}" x:DataType="vm:TypeMappingRowViewModel" Width="*" MinWidth="140" />
+            </DataGrid.Columns>
+          </DataGrid>
+          <ContentControl Grid.Column="2" Content="{Binding SelectedTypeMapping}">
+            <ContentControl.DataTemplates>
+              <DataTemplate DataType="vm:TypeMappingRowViewModel">
+                <DockPanel>
+                  <TextBlock DockPanel.Dock="Top" Text="Columns with this mapping" Classes="label" Margin="0,0,0,4" />
+                  <ListBox ItemsSource="{Binding Columns}" />
+                </DockPanel>
+              </DataTemplate>
+            </ContentControl.DataTemplates>
+          </ContentControl>
+        </Grid>
+      </TabItem>
+
+      <TabItem Header="Issues">
+        <parts:IssuesView DataContext="{Binding Issues}" Margin="0,8,0,0" />
+      </TabItem>
+
+      <TabItem Header="SQL script">
+        <parts:ScriptView DataContext="{Binding Script}" Margin="0,8,0,0" />
+      </TabItem>
+    </TabControl>
+  </DockPanel>
+</UserControl>

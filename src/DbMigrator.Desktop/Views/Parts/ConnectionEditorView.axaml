@@ -1,0 +1,96 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DbMigrator.Desktop.ViewModels"
+             xmlns:core="using:DbMigrator.Core.Providers"
+             x:Class="DbMigrator.Desktop.Views.Parts.ConnectionEditorView"
+             x:DataType="vm:ConnectionEditorViewModel">
+  <!-- One template per field kind: the engine's format decides which fields there are. -->
+  <UserControl.DataTemplates>
+    <DataTemplate DataType="vm:TextFieldViewModel">
+      <StackPanel Spacing="2" Margin="0,0,0,10" IsVisible="{Binding IsVisible}">
+        <TextBlock Text="{Binding Label}" Classes="label" />
+        <TextBox Text="{Binding Value}" PlaceholderText="{Binding Placeholder}" AutomationProperties.Name="{Binding Keyword}" />
+        <TextBlock Text="{Binding Help}" Classes="help" IsVisible="{Binding HasHelp}" />
+        <TextBlock Text="{Binding Error}" Classes="error" IsVisible="{Binding HasError}" />
+      </StackPanel>
+    </DataTemplate>
+    <DataTemplate DataType="vm:IntegerFieldViewModel">
+      <StackPanel Spacing="2" Margin="0,0,0,10" IsVisible="{Binding IsVisible}">
+        <TextBlock Text="{Binding Label}" Classes="label" />
+        <NumericUpDown Value="{Binding Number}" Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" Increment="1"
+                       FormatString="0" PlaceholderText="{Binding Placeholder}" HorizontalAlignment="Left" Width="180"
+                       AutomationProperties.Name="{Binding Keyword}" />
+        <TextBlock Text="{Binding Help}" Classes="help" IsVisible="{Binding HasHelp}" />
+        <TextBlock Text="{Binding Error}" Classes="error" IsVisible="{Binding HasError}" />
+      </StackPanel>
+    </DataTemplate>
+    <DataTemplate DataType="vm:SecretFieldViewModel">
+      <StackPanel Spacing="2" Margin="0,0,0,10" IsVisible="{Binding IsVisible}">
+        <TextBlock Text="{Binding Label}" Classes="label" />
+        <TextBox Text="{Binding Value}" PasswordChar="●" RevealPassword="{Binding IsRevealed}" AutomationProperties.Name="{Binding Keyword}">
+          <TextBox.InnerRightContent>
+            <ToggleButton IsChecked="{Binding IsRevealed}" Content="Show" Padding="8,2" Margin="2"
+                          AutomationProperties.Name="{Binding Label, StringFormat='Show {0}'}" />
+          </TextBox.InnerRightContent>
+        </TextBox>
+        <TextBlock Text="{Binding Help}" Classes="help" IsVisible="{Binding HasHelp}" />
+        <TextBlock Text="{Binding Error}" Classes="error" IsVisible="{Binding HasError}" />
+      </StackPanel>
+    </DataTemplate>
+    <DataTemplate DataType="vm:ToggleFieldViewModel">
+      <StackPanel Spacing="2" Margin="0,0,0,10" IsVisible="{Binding IsVisible}">
+        <CheckBox IsChecked="{Binding IsChecked}" AutomationProperties.Name="{Binding Keyword}">
+          <TextBlock Text="{Binding Label}" />
+        </CheckBox>
+        <TextBlock Text="{Binding Help}" Classes="help" IsVisible="{Binding HasHelp}" />
+        <TextBlock Text="{Binding Error}" Classes="error" IsVisible="{Binding HasError}" />
+      </StackPanel>
+    </DataTemplate>
+    <DataTemplate DataType="vm:ChoiceFieldViewModel">
+      <StackPanel Spacing="2" Margin="0,0,0,10" IsVisible="{Binding IsVisible}">
+        <TextBlock Text="{Binding Label}" Classes="label" />
+        <ComboBox ItemsSource="{Binding Choices}" SelectedItem="{Binding SelectedChoice}" HorizontalAlignment="Stretch"
+                  DisplayMemberBinding="{Binding Label, x:DataType=core:ConnectionChoice, Mode=OneWay}" AutomationProperties.Name="{Binding Keyword}" />
+        <TextBlock Text="{Binding Help}" Classes="help" IsVisible="{Binding HasHelp}" />
+        <TextBlock Text="{Binding Error}" Classes="error" IsVisible="{Binding HasError}" />
+      </StackPanel>
+    </DataTemplate>
+    <DataTemplate DataType="vm:FilePathFieldViewModel">
+      <StackPanel Spacing="2" Margin="0,0,0,10" IsVisible="{Binding IsVisible}">
+        <TextBlock Text="{Binding Label}" Classes="label" />
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+          <TextBox Text="{Binding Value}" PlaceholderText="{Binding Placeholder}" AutomationProperties.Name="{Binding Keyword}" />
+          <Button Grid.Column="1" Content="Browse..." Command="{Binding BrowseCommand}" />
+        </Grid>
+        <TextBlock Text="{Binding Help}" Classes="help" IsVisible="{Binding HasHelp}" />
+        <TextBlock Text="{Binding Error}" Classes="error" IsVisible="{Binding HasError}" />
+      </StackPanel>
+    </DataTemplate>
+  </UserControl.DataTemplates>
+
+  <StackPanel Spacing="8">
+    <ToggleSwitch Name="RawMode" IsChecked="{Binding IsRawMode}" OnContent="Edit as connection string" OffContent="Edit as connection string" />
+
+    <ItemsControl Name="Fields" ItemsSource="{Binding Fields}" IsVisible="{Binding !IsRawMode}" />
+
+    <StackPanel Spacing="6" IsVisible="{Binding IsRawMode}">
+      <TextBlock Classes="help" Text="Passwords are never shown here; type them in the boxes below. A password pasted into the text moves into its box." />
+      <TextBox Name="RawText" Text="{Binding RawText}" Classes="mono" TextWrapping="Wrap" MinHeight="64" AutomationProperties.Name="Connection string" />
+      <TextBlock Text="{Binding RawError}" Classes="error" IsVisible="{Binding HasRawError}" />
+      <ItemsControl ItemsSource="{Binding VisibleSecrets}" />
+    </StackPanel>
+
+    <TextBlock Name="EditorNotice" Text="{Binding Notice}" Classes="help" IsVisible="{Binding HasNotice}" />
+
+    <Expander Header="Advanced" IsVisible="{Binding !IsRawMode}" HorizontalAlignment="Stretch">
+      <StackPanel>
+        <ItemsControl ItemsSource="{Binding AdvancedFields}" />
+        <TextBlock Text="Additional settings" Classes="label" />
+        <TextBox Name="AdditionalSettings" Text="{Binding AdditionalSettings}" Classes="mono" TextWrapping="Wrap"
+                 PlaceholderText="Keyword=value; ..." AutomationProperties.Name="Additional settings" />
+        <TextBlock Classes="help" Text="Other driver settings, as keyword=value pairs separated by semicolons." />
+        <TextBlock Text="{Binding RawError}" Classes="error" IsVisible="{Binding HasRawError}" />
+      </StackPanel>
+    </Expander>
+  </StackPanel>
+</UserControl>
