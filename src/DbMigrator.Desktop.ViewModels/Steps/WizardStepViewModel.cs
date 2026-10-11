@@ -60,6 +60,9 @@ public abstract partial class WizardStepViewModel : ObservableObject
 
     public virtual string NextLabel => "Next";
 
+    /// <summary>Next does something on this step instead of moving on, e.g. saving the script when there is no target.</summary>
+    public virtual bool NextActsInPlace => false;
+
     /// <summary>The step's number in the rail, counting applicable steps only.</summary>
     [ObservableProperty]
     public partial int Number { get; set; }

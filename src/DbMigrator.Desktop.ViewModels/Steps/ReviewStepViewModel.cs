@@ -25,6 +25,7 @@ public sealed partial class ReviewStepViewModel : WizardStepViewModel
     private readonly Debouncer _replan;
     private (int Source, int Target, int Selection, int Options) _plannedFrom = (-1, -1, -1, -1);
     private bool _applyingChoices;
+    private int _replansPending;
 
     public ReviewStepViewModel(ShellServices services, MigrationSession session)
     {
@@ -42,6 +43,8 @@ public sealed partial class ReviewStepViewModel : WizardStepViewModel
     public override string Subtitle => "Check the plan. Nothing has been changed yet.";
 
     public override string NextLabel => _session.ScriptOnly ? "Save script..." : "Continue to run";
+
+    public override bool NextActsInPlace => _session.ScriptOnly;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasPlan), nameof(HasErrors), nameof(HeaderText), nameof(SchemasText), nameof(ErrorBannerText))]
@@ -216,6 +219,7 @@ public sealed partial class ReviewStepViewModel : WizardStepViewModel
     private async Task PlanNowAsync(CancellationToken cancellationToken)
     {
         _replan.Cancel();
+        _replansPending++;
         IsPlanning = true;
         RaiseCanAdvanceChanged();
         try
@@ -224,7 +228,7 @@ public sealed partial class ReviewStepViewModel : WizardStepViewModel
         }
         finally
         {
-            IsPlanning = false;
+            IsPlanning = --_replansPending > 0;
             RaiseCanAdvanceChanged();
         }
     }
@@ -244,6 +248,9 @@ public sealed partial class ReviewStepViewModel : WizardStepViewModel
     private async Task ReplanAsync()
     {
         UndecidedCount = Conflicts.Count(r => r.IsUndecided);
+
+        // A superseded re-plan ends early; planning goes on until the newest one is applied.
+        _replansPending++;
         IsPlanning = true;
         RaiseCanAdvanceChanged();
         try
@@ -257,7 +264,7 @@ public sealed partial class ReviewStepViewModel : WizardStepViewModel
         }
         finally
         {
-            IsPlanning = false;
+            IsPlanning = --_replansPending > 0;
             RaiseCanAdvanceChanged();
         }
     }

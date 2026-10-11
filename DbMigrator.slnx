@@ -2,11 +2,14 @@
   <Folder Name="/src/">
     <Project Path="src/DbMigrator.Cli/DbMigrator.Cli.csproj" />
     <Project Path="src/DbMigrator.Core/DbMigrator.Core.csproj" />
+    <Project Path="src/DbMigrator.Desktop.ViewModels/DbMigrator.Desktop.ViewModels.csproj" />
     <Project Path="src/DbMigrator.Providers.PostgreSql/DbMigrator.Providers.PostgreSql.csproj" />
     <Project Path="src/DbMigrator.Providers.SqlServer/DbMigrator.Providers.SqlServer.csproj" />
     <Project Path="src/DbMigrator.Providers/DbMigrator.Providers.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/DbMigrator.Desktop.Testing/DbMigrator.Desktop.Testing.csproj" />
+    <Project Path="tests/DbMigrator.Desktop.Tests/DbMigrator.Desktop.Tests.csproj" />
     <Project Path="tests/DbMigrator.IntegrationTests/DbMigrator.IntegrationTests.csproj" />
     <Project Path="tests/DbMigrator.Tests/DbMigrator.Tests.csproj" />
     <Project Path="tests/DbMigrator.TestSupport/DbMigrator.TestSupport.csproj" />

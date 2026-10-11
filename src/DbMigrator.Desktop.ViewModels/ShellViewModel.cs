@@ -108,7 +108,8 @@ public sealed partial class ShellViewModel : ObservableObject, IWizardNavigator,
 
     public async ValueTask DisposeAsync() => await Session.DisposeAsync();
 
-    private bool CanGoNext() => !IsLocked && !_navigating && Current.CanAdvance && !Current.IsBusy && NextApplicable(Current) is not null;
+    private bool CanGoNext() =>
+        !IsLocked && !_navigating && Current.CanAdvance && !Current.IsBusy && (NextApplicable(Current) is not null || Current.NextActsInPlace);
 
     [RelayCommand(CanExecute = nameof(CanGoNext))]
     private async Task NextAsync()
@@ -157,7 +158,7 @@ public sealed partial class ShellViewModel : ObservableObject, IWizardNavigator,
 
     private async Task<bool> AdvanceAsync()
     {
-        if (NextApplicable(Current) is null || !Current.CanAdvance)
+        if ((NextApplicable(Current) is null && !Current.NextActsInPlace) || !Current.CanAdvance)
         {
             return false;
         }

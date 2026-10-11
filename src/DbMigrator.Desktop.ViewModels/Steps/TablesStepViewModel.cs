@@ -162,7 +162,7 @@ public sealed partial class TablesStepViewModel : WizardStepViewModel
         {
             _builtTargetVersion = _session.TargetVersion;
             RefreshDefaults();
-            await PreviewAsync();
+            _ = PreviewAsync();
         }
     }
 
@@ -248,7 +248,7 @@ public sealed partial class TablesStepViewModel : WizardStepViewModel
         RereadNotice = added == 0 && removed == 0
             ? "No tables were added or removed."
             : $"{Humanize.Plural(added, "new table")} (not selected), {Humanize.Plural(removed, "table")} no longer there.";
-        await PreviewAsync();
+        _ = PreviewAsync();
     }
 
     /// <summary>Selects every table again, as on first arrival, for a new migration.</summary>

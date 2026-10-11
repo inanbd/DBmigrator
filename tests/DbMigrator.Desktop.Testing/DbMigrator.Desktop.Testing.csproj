@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <Description>Fakes for the desktop app's services, a fake UI thread and a manual clock, shared by the desktop test projects.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\DbMigrator.Desktop.ViewModels\DbMigrator.Desktop.ViewModels.csproj" />
+    <ProjectReference Include="..\DbMigrator.TestSupport\DbMigrator.TestSupport.csproj" />
+  </ItemGroup>
+
+</Project>

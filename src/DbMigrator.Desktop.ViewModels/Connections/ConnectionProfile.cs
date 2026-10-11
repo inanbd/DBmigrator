@@ -108,9 +108,47 @@ public static class ProfileFactory
             }
 
             additional = parsed.AdditionalSettings;
+
+            // Defence in depth: a password-like keyword the driver did not recognise as a field is dropped too.
+            if (StripPasswordLikeKeywords(additional) is { } stripped)
+            {
+                additional = stripped;
+                dropped = true;
+            }
         }
 
         return new ProfileCreation(new ConnectionProfile(id, name.Trim(), provider.Id, kept, additional, rememberPassword, lastUsedUtc), dropped);
+    }
+
+    /// <summary>The settings without any keyword that names a password, or null when there was none.</summary>
+    private static string? StripPasswordLikeKeywords(string settings)
+    {
+        var builder = new System.Data.Common.DbConnectionStringBuilder();
+        try
+        {
+            builder.ConnectionString = settings;
+        }
+        catch (ArgumentException)
+        {
+            return "";
+        }
+
+        var found = builder.Keys.Cast<string>().Where(IsPasswordLike).ToList();
+        foreach (var keyword in found)
+        {
+            builder.Remove(keyword);
+        }
+
+        return found.Count == 0 ? null : builder.ConnectionString;
+    }
+
+    private static bool IsPasswordLike(string keyword)
+    {
+        var name = keyword.Replace(" ", "", StringComparison.Ordinal).Replace("_", "", StringComparison.Ordinal);
+        return name.Equals("pwd", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("psw", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("password", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("secret", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>Rebuilds a profile read from disk, stripping secrets again in case the file was edited by hand.</summary>

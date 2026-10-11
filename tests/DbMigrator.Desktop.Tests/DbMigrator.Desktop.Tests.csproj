@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\DbMigrator.Desktop.ViewModels\DbMigrator.Desktop.ViewModels.csproj" />
+    <ProjectReference Include="..\..\src\DbMigrator.Providers\DbMigrator.Providers.csproj" />
+    <ProjectReference Include="..\DbMigrator.Desktop.Testing\DbMigrator.Desktop.Testing.csproj" />
+    <ProjectReference Include="..\DbMigrator.TestSupport\DbMigrator.TestSupport.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>
