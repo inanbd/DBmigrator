@@ -49,7 +49,7 @@ public sealed class JsonProfileStoreTests : IDisposable
         Assert.True(loaded.Profiles[1].RememberPassword);
         Assert.Null(loaded.Notice);
         Assert.DoesNotContain("hunter2", File.ReadAllText(_home.Paths.ProfilesFile), StringComparison.Ordinal);
-        Assert.False(File.Exists(_home.Paths.ProfilesFile + ".tmp"));
+        Assert.Empty(Directory.GetFiles(_home.Paths.ConfigFolder, "*.tmp"));
     }
 
     [Fact]
@@ -120,6 +120,81 @@ public sealed class JsonProfileStoreTests : IDisposable
     }
 
     [Fact]
+    public void A_newer_file_this_version_cannot_parse_is_kept_not_set_aside()
+    {
+        Directory.CreateDirectory(_home.Paths.ConfigFolder);
+        const string newer = """{ "version": 3, "profiles": { "byName": {} } }""";
+        File.WriteAllText(_home.Paths.ProfilesFile, newer);
+        var store = Store();
+
+        var loaded = store.Load();
+
+        Assert.True(loaded.IsReadOnly);
+        Assert.Empty(loaded.Profiles);
+        Assert.Contains("newer version", loaded.Notice, StringComparison.Ordinal);
+        Assert.Throws<InvalidOperationException>(() => store.Save(Profile("mine")));
+        Assert.Equal(newer, File.ReadAllText(_home.Paths.ProfilesFile));
+        Assert.Empty(Directory.GetFiles(_home.Paths.ConfigFolder, "*.corrupt-*"));
+    }
+
+    [Fact]
+    public void A_file_a_newer_version_wrote_after_loading_is_never_downgraded()
+    {
+        var store = Store();
+        store.Load();
+        const string newer = """{ "version": 2, "profiles": [] }""";
+        Directory.CreateDirectory(_home.Paths.ConfigFolder);
+        File.WriteAllText(_home.Paths.ProfilesFile, newer);
+
+        Assert.Throws<InvalidOperationException>(() => store.Save(Profile("mine")));
+        Assert.Equal(newer, File.ReadAllText(_home.Paths.ProfilesFile));
+    }
+
+    [Fact]
+    public void Null_entries_written_by_hand_are_dropped_not_crashed_on()
+    {
+        Directory.CreateDirectory(_home.Paths.ConfigFolder);
+        File.WriteAllText(_home.Paths.ProfilesFile, """
+            { "version": 1, "profiles": [ null, { "id": "3f2b0000-0000-0000-0000-000000000001", "name": "ok", "provider": "sqlserver",
+              "values": { "Data Source": "sql01", "Initial Catalog": null }, "additionalSettings": "", "rememberPassword": false,
+              "lastUsedUtc": "2026-10-10T08:00:00Z" } ] }
+            """);
+
+        var profile = Assert.Single(Store().Load().Profiles);
+
+        Assert.Equal("ok", profile.Name);
+        Assert.False(profile.Values.ContainsKey("Initial Catalog"));
+    }
+
+    [Fact]
+    public void A_password_edited_into_another_profile_is_removed_by_any_write()
+    {
+        Directory.CreateDirectory(_home.Paths.ConfigFolder);
+        File.WriteAllText(_home.Paths.ProfilesFile, """
+            { "version": 1, "profiles": [ { "id": "3f2b0000-0000-0000-0000-000000000001", "name": "edited", "provider": "sqlserver",
+              "values": { "Data Source": "sql01", "Password": "hunter2" }, "additionalSettings": "pwd=hunter2",
+              "rememberPassword": false, "lastUsedUtc": "2026-10-10T08:00:00Z" } ] }
+            """);
+
+        Store().Save(Profile("another"));
+
+        Assert.DoesNotContain("hunter2", File.ReadAllText(_home.Paths.ProfilesFile), StringComparison.Ordinal);
+        Assert.Equal(2, Store().Load().Profiles.Count);
+    }
+
+    [Fact]
+    public void Two_windows_writing_at_once_lose_nothing()
+    {
+        var first = Store();
+        var second = Store();
+
+        Parallel.For(0, 40, i => (i % 2 == 0 ? first : second).Save(Profile($"profile {i}")));
+
+        Assert.Equal(40, Store().Load().Profiles.Count);
+        Assert.Empty(Directory.GetFiles(_home.Paths.ConfigFolder, "*.tmp"));
+    }
+
+    [Fact]
     public void Only_the_user_can_read_the_file()
     {
         if (OperatingSystem.IsWindows())
@@ -152,6 +227,19 @@ public sealed class JsonSettingsStoreTests : IDisposable
 
         Assert.Equal(settings, new JsonSettingsStore(_home.Paths, _time, _log).Load());
         Assert.Contains("\"naming\": \"SnakeCase\"", File.ReadAllText(_home.Paths.SettingsFile), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Settings_from_a_newer_version_are_kept()
+    {
+        Directory.CreateDirectory(_home.Paths.ConfigFolder);
+        const string newer = """{ "version": 2, "naming": "SomethingNew" }""";
+        File.WriteAllText(_home.Paths.SettingsFile, newer);
+        var store = new JsonSettingsStore(_home.Paths, _time, _log);
+
+        Assert.Equal(new AppSettings(), store.Load());
+        Assert.Throws<InvalidOperationException>(() => store.Save(new AppSettings()));
+        Assert.Equal(newer, File.ReadAllText(_home.Paths.SettingsFile));
     }
 
     [Fact]
@@ -209,6 +297,26 @@ public sealed class ReportArchiveAndLogTests : IDisposable
         Assert.Contains("2026-10-10T08:00:00.000Z INFO  Run started.", text, StringComparison.Ordinal);
         Assert.Contains("ERROR Saving failed.", text, StringComparison.Ordinal);
         Assert.Contains("disk full", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Only_the_user_can_read_the_log()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            Assert.Skip("Unix file modes do not apply on Windows.");
+        }
+        else
+        {
+            var shared = Path.Combine(_home.Root, "logs");
+            Directory.CreateDirectory(shared);
+            File.SetUnixFileMode(shared, (UnixFileMode)0b111_101_101);
+
+            new FileAppLog(shared, _time).Info("Run started.");
+
+            Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(Path.Combine(shared, "desktop-20261010.log")));
+            Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute, File.GetUnixFileMode(shared));
+        }
     }
 
     [Fact]

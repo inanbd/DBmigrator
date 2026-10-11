@@ -43,7 +43,11 @@ public sealed class FileAppLog : IAppLog
         {
             try
             {
-                File.AppendAllText(Path.Combine(LogFolder, $"desktop-{now.ToString("yyyyMMdd", CultureInfo.InvariantCulture)}.log"), line);
+                // Created readable by the user only: the log names servers, databases and logins.
+                var path = Path.Combine(LogFolder, $"desktop-{now.ToString("yyyyMMdd", CultureInfo.InvariantCulture)}.log");
+                using var stream = new FileStream(path, PrivateFiles.PrivateFileOptions(FileMode.Append, FileAccess.Write, FileShare.ReadWrite));
+                using var writer = new StreamWriter(stream);
+                writer.Write(line);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {

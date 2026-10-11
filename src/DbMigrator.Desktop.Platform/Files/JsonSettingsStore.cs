@@ -21,11 +21,13 @@ public sealed class JsonSettingsStore(AppPaths paths, TimeProvider time, IAppLog
                 return new AppSettings();
             }
 
+            var text = File.ReadAllText(path);
+            var version = JsonProfileStore.ReadVersion(text);
+            _readOnly = version > Version;
             try
             {
-                var file = JsonSerializer.Deserialize(File.ReadAllText(path), PlatformJsonContext.Default.SettingsFile)
+                var file = JsonSerializer.Deserialize(text, PlatformJsonContext.Default.SettingsFile)
                     ?? throw new JsonException("The file is empty.");
-                _readOnly = file.Version > Version;
                 return new AppSettings
                 {
                     Naming = file.Naming,
@@ -36,6 +38,12 @@ public sealed class JsonSettingsStore(AppPaths paths, TimeProvider time, IAppLog
                     LastSourceProfileId = file.LastSourceProfileId,
                     LastTargetProfileId = file.LastTargetProfileId,
                 };
+            }
+            catch (JsonException ex) when (_readOnly)
+            {
+                // A newer version's settings this version cannot read: use defaults, keep the file.
+                log.Error("Settings from a newer version could not be read; using defaults.", ex);
+                return new AppSettings();
             }
             catch (JsonException ex)
             {
@@ -50,8 +58,11 @@ public sealed class JsonSettingsStore(AppPaths paths, TimeProvider time, IAppLog
     {
         lock (_lock)
         {
-            if (_readOnly)
+            var path = paths.SettingsFile;
+            using var fileLock = PrivateFiles.Lock(path, TimeSpan.FromSeconds(10));
+            if (_readOnly || (File.Exists(path) && JsonProfileStore.ReadVersion(File.ReadAllText(path)) > Version))
             {
+                _readOnly = true;
                 throw new InvalidOperationException("Settings were written by a newer version of DbMigrator, so they are not changed.");
             }
 
@@ -64,7 +75,7 @@ public sealed class JsonSettingsStore(AppPaths paths, TimeProvider time, IAppLog
                 settings.VerifyRowCounts,
                 settings.LastSourceProfileId,
                 settings.LastTargetProfileId);
-            PrivateFiles.WriteAtomically(paths.SettingsFile, JsonSerializer.Serialize(file, PlatformJsonContext.Default.SettingsFile));
+            PrivateFiles.WriteAtomically(path, JsonSerializer.Serialize(file, PlatformJsonContext.Default.SettingsFile));
         }
     }
 }
