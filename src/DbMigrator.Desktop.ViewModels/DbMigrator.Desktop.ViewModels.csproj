@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>View models and wizard state for the DbMigrator desktop app. No UI toolkit: everything here is testable without a window.</Description>
+    <RootNamespace>DbMigrator.Desktop.ViewModels</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DbMigrator.Core\DbMigrator.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DbMigrator.Desktop.Tests" />
+  </ItemGroup>
+
+</Project>
