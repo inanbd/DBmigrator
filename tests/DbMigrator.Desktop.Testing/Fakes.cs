@@ -156,12 +156,20 @@ public sealed class FakeFileService : IFileService
 
     public string? NextPick { get; set; }
 
+    /// <summary>When set, saving throws an <see cref="UnauthorizedAccessException"/> with this message.</summary>
+    public string? SaveFailure { get; set; }
+
     public async Task<SavedFile?> SaveAsync(SaveFileRequest request, Func<FileTypeChoice, Stream, CancellationToken, Task> write, CancellationToken cancellationToken)
     {
         SaveRequests.Add(request);
         if (CancelSave)
         {
             return null;
+        }
+
+        if (SaveFailure is { } failure)
+        {
+            throw new UnauthorizedAccessException(failure);
         }
 
         var type = request.Types.FirstOrDefault(t => t.Extension == ChooseExtension) ?? request.Types[0];
@@ -202,6 +210,9 @@ public sealed class InMemoryCredentialStore : ICredentialStore
 
     public ThreadGuard Thread { get; } = new();
 
+    /// <summary>Holds every Find until released, like an unlock prompt the user has not answered.</summary>
+    public Gate? FindGate { get; set; }
+
     public IReadOnlyDictionary<string, string> Secrets => _secrets;
 
     public string? ProbeAvailability()
@@ -224,6 +235,7 @@ public sealed class InMemoryCredentialStore : ICredentialStore
     public string? Find(string key)
     {
         Thread.Check();
+        FindGate?.PassAsync(CancellationToken.None).GetAwaiter().GetResult();
         return _secrets.TryGetValue(key, out var secret) ? secret : null;
     }
 
@@ -244,6 +256,12 @@ public sealed class InMemoryProfileStore(ProviderCatalog catalog) : IProfileStor
 
     public string? Notice { get; set; }
 
+    /// <summary>Like a file from a newer version: loads, but every change throws.</summary>
+    public bool IsReadOnly { get; set; }
+
+    /// <summary>When set, writes throw an <see cref="IOException"/> with this message.</summary>
+    public string? WriteFailure { get; set; }
+
     public IReadOnlyCollection<StoredProfile> Stored => _profiles.Values.ToList();
 
     /// <summary>Everything stored, as JSON text.</summary>
@@ -255,19 +273,34 @@ public sealed class InMemoryProfileStore(ProviderCatalog catalog) : IProfileStor
     {
         Thread.Check();
         var profiles = _profiles.Values.Select(p => ProfileFactory.Restore(catalog, p)).OfType<ConnectionProfile>().ToList();
-        return new ProfileLoadResult(profiles, Notice, IsReadOnly: false);
+        return new ProfileLoadResult(profiles, Notice, IsReadOnly);
     }
 
     public void Save(ConnectionProfile profile)
     {
         Thread.Check();
+        RefuseWrites();
         _profiles[profile.Id] = profile.ToStored();
     }
 
     public void Delete(Guid id)
     {
         Thread.Check();
+        RefuseWrites();
         _profiles.TryRemove(id, out _);
+    }
+
+    private void RefuseWrites()
+    {
+        if (IsReadOnly)
+        {
+            throw new InvalidOperationException("Saved connections were written by a newer version of DbMigrator, so they are not changed.");
+        }
+
+        if (WriteFailure is { } failure)
+        {
+            throw new IOException(failure);
+        }
     }
 }
 

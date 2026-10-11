@@ -152,16 +152,24 @@ public sealed partial class TablesStepViewModel : WizardStepViewModel
             }
         }
 
+        var preview = false;
         if (_builtSourceVersion != _session.SourceVersion)
         {
+            // New rows know nothing of the target yet.
             Rebuild(keepSelection: _builtSourceVersion >= 0);
             _builtSourceVersion = _session.SourceVersion;
+            preview = true;
         }
 
         if (_builtTargetVersion != _session.TargetVersion)
         {
             _builtTargetVersion = _session.TargetVersion;
             RefreshDefaults();
+            preview = true;
+        }
+
+        if (preview)
+        {
             _ = PreviewAsync();
         }
     }
@@ -318,6 +326,9 @@ public sealed partial class TablesStepViewModel : WizardStepViewModel
 
         NamingChoices = BuildNamingChoices(rows);
         RecountSelection();
+
+        // The table count and catalog time in the summary change even when the selection does not.
+        OnPropertyChanged(nameof(SummaryText));
         ApplyFilter();
         ValidateMappings();
         _ = RecomputeReferencesAsync();

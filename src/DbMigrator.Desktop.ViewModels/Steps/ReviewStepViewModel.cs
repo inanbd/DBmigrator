@@ -154,7 +154,15 @@ public sealed partial class ReviewStepViewModel : WizardStepViewModel
         _session.Prepared = Prepared;
         if (_session.ScriptOnly)
         {
-            await Script.SaveCommand.ExecuteAsync(null);
+            try
+            {
+                await Script.SaveCommand.ExecuteAsync(null);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+            {
+                ShowError(ex);
+            }
+
             return false;
         }
 
@@ -166,6 +174,9 @@ public sealed partial class ReviewStepViewModel : WizardStepViewModel
     public void ShowPreflightResult(PreflightResult result)
     {
         PreflightDifferences = result.Differences;
+
+        // The pre-flight plan is made from the target as it is now: no need to plan again on entering.
+        _plannedFrom = (_session.SourceVersion, _session.TargetVersion, _session.SelectionVersion, _session.OptionsVersion);
         Apply(result.Current);
         SelectedTab = UndecidedCount > 0 ? DecisionsTab : TablesTab;
     }
@@ -300,7 +311,13 @@ public sealed partial class ReviewStepViewModel : WizardStepViewModel
         {
             foreach (var table in existing)
             {
-                rows[table.Source.Name].Update(table);
+                var row = rows[table.Source.Name];
+                row.Update(table);
+
+                // Choices live in the session, which forgets them when the source or target changes.
+                _applyingChoices = true;
+                row.Choice = ConflictChoice.For(_session.ConflictChoices.TryGetValue(table.Source.Name, out var chosen) ? chosen : null);
+                _applyingChoices = false;
             }
         }
 

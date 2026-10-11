@@ -10,7 +10,7 @@ namespace DbMigrator.Desktop.Platform;
 /// as a byte buffer: no <c>security</c> process is started, so it never reaches a command line.
 /// </summary>
 [SupportedOSPlatform("macos")]
-internal sealed partial class MacKeychainCredentialStore : ICredentialStore
+internal sealed unsafe partial class MacKeychainCredentialStore : ICredentialStore
 {
     private const string Security = "/System/Library/Frameworks/Security.framework/Security";
     private const string CoreFoundation = "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation";
@@ -45,12 +45,7 @@ internal sealed partial class MacKeychainCredentialStore : ICredentialStore
             var status = SecKeychainAddGenericPassword(IntPtr.Zero, (uint)service.Length, service, (uint)account.Length, account, (uint)data.Length, data, out var item);
             if (status == ErrSecDuplicateItem)
             {
-                status = SecKeychainFindGenericPassword(IntPtr.Zero, (uint)service.Length, service, (uint)account.Length, account, out _, out var existing, out item);
-                if (existing != IntPtr.Zero)
-                {
-                    _ = SecKeychainItemFreeContent(IntPtr.Zero, existing);
-                }
-
+                status = FindItem(service, account, out item);
                 if (status == 0)
                 {
                     status = SecKeychainItemModifyAttributesAndData(item, IntPtr.Zero, (uint)data.Length, data);
@@ -96,12 +91,7 @@ internal sealed partial class MacKeychainCredentialStore : ICredentialStore
     {
         var service = Encoding.UTF8.GetBytes(CredentialStores.Service);
         var account = Encoding.UTF8.GetBytes(key);
-        var status = SecKeychainFindGenericPassword(IntPtr.Zero, (uint)service.Length, service, (uint)account.Length, account, out _, out var data, out var item);
-        if (data != IntPtr.Zero)
-        {
-            _ = SecKeychainItemFreeContent(IntPtr.Zero, data);
-        }
-
+        var status = FindItem(service, account, out var item);
         if (status == ErrSecItemNotFound)
         {
             return;
@@ -117,6 +107,13 @@ internal sealed partial class MacKeychainCredentialStore : ICredentialStore
             Release(item);
         }
     }
+
+    /// <summary>
+    /// Finds the item without reading its password: reading it is what asks the user for access, which
+    /// replacing or deleting the item does not need.
+    /// </summary>
+    private static int FindItem(byte[] service, byte[] account, out IntPtr item) =>
+        SecKeychainFindItem(IntPtr.Zero, (uint)service.Length, service, (uint)account.Length, account, null, null, out item);
 
     private static void Check(int status, string action)
     {
@@ -145,6 +142,9 @@ internal sealed partial class MacKeychainCredentialStore : ICredentialStore
 
     [LibraryImport(Security)]
     private static partial int SecKeychainFindGenericPassword(IntPtr keychainOrArray, uint serviceNameLength, byte[] serviceName, uint accountNameLength, byte[] accountName, out uint passwordLength, out IntPtr passwordData, out IntPtr itemRef);
+
+    [LibraryImport(Security, EntryPoint = "SecKeychainFindGenericPassword")]
+    private static partial int SecKeychainFindItem(IntPtr keychainOrArray, uint serviceNameLength, byte[] serviceName, uint accountNameLength, byte[] accountName, uint* passwordLength, IntPtr* passwordData, out IntPtr itemRef);
 
     [LibraryImport(Security)]
     private static partial int SecKeychainItemModifyAttributesAndData(IntPtr itemRef, IntPtr attrList, uint length, byte[] data);

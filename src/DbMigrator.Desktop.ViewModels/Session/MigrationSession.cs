@@ -115,6 +115,7 @@ public sealed class MigrationSession(ProviderCatalog providers, TimeProvider tim
         Schema = schema;
         SchemaReadAt = time.GetUtcNow();
         Prepared = null;
+        ClearConflictChoices();
         SourceVersion++;
         await DisposeLaterAsync(previous, database);
     }
@@ -155,6 +156,9 @@ public sealed class MigrationSession(ProviderCatalog providers, TimeProvider tim
         TargetInfo = info;
         ScriptOnly = false;
         Prepared = null;
+
+        // A decision such as "drop and recreate" was made for the tables of the previous target.
+        ClearConflictChoices();
         TargetVersion++;
         await DisposeLaterAsync(previous, database);
     }
@@ -170,6 +174,7 @@ public sealed class MigrationSession(ProviderCatalog providers, TimeProvider tim
         TargetInfo = new TargetInfo("not connected; assuming an empty target", provider.CreateDialect(), TargetState.Unknown);
         ScriptOnly = true;
         Prepared = null;
+        ClearConflictChoices();
         TargetVersion++;
         await DisposeLaterAsync(previous, null);
     }
@@ -258,7 +263,15 @@ public sealed class MigrationSession(ProviderCatalog providers, TimeProvider tim
         var info = await BackgroundWork.RunAsync(ct => target.InspectAsync(ct), cancellationToken);
         TargetInfo = info;
         var current = await BackgroundWork.RunAsync(() => MigrationEngine.Prepare(reviewed.Source, info, reviewed.Options), cancellationToken);
-        return new PreflightResult(current, PlanFingerprint.Diff(reviewed, current));
+        var result = new PreflightResult(current, PlanFingerprint.Diff(reviewed, current));
+        if (result.Differences.Count > 0)
+        {
+            // The target changed: steps built from the old inspection rebuild on their next visit.
+            Prepared = null;
+            TargetVersion++;
+        }
+
+        return result;
     }
 
     /// <summary>Runs the migration. A cancelled run returns its partial report instead of throwing.</summary>

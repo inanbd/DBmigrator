@@ -54,6 +54,14 @@ public sealed partial class ReportStepViewModel : WizardStepViewModel
         _session = session;
         Issues = new IssueListViewModel(services);
         RemainingSql = new ScriptViewModel(services);
+        PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(IsBusy))
+            {
+                RunAgainCommand.NotifyCanExecuteChanged();
+                NewMigrationCommand.NotifyCanExecuteChanged();
+            }
+        };
     }
 
     public override WizardStepKind Kind => WizardStepKind.Report;
@@ -238,8 +246,10 @@ public sealed partial class ReportStepViewModel : WizardStepViewModel
         RemainingSql.SelectedRow = RemainingSql.Rows.FirstOrDefault(r => r.IsStep && r.Sql == step.Sql) ?? RemainingSql.SelectedRow;
     }
 
+    private bool CanRestart() => !IsBusy;
+
     /// <summary>The same tables and options again: the target is inspected anew and existing tables are asked about again.</summary>
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanRestart))]
     private async Task RunAgainAsync()
     {
         if (await GuardAsync(ct => _session.ReinspectTargetAsync(ct), "Inspecting the target again...", CancellationToken.None))
@@ -249,7 +259,7 @@ public sealed partial class ReportStepViewModel : WizardStepViewModel
     }
 
     /// <summary>Keeps both connections and starts again from choosing tables.</summary>
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanRestart))]
     private async Task NewMigrationAsync()
     {
         if (await GuardAsync(ct => _session.ReinspectTargetAsync(ct), "Inspecting the target again...", CancellationToken.None))
@@ -268,7 +278,7 @@ public sealed partial class ReportStepViewModel : WizardStepViewModel
             ? $"{_session.RunFailure?.Message} Details are in the log: {_services.Log.LogFolder}"
             : ReportSummary.SubHeadline(report, Outcome, options);
 
-        var dataTables = report.Tables.Count(t => t.Table.ReceivesData && options.CopyData);
+        var dataTables = report.Plan.Tables.Count(t => t.ReceivesData && options.CopyData);
         var copied = report.Tables.Count(t => t.Status is TableStatus.Copied or TableStatus.CountMismatch);
         var stepsTotal = report.Steps.Count + report.StepsNotRun.Count;
         var seconds = report.Elapsed.TotalSeconds;
@@ -282,7 +292,12 @@ public sealed partial class ReportStepViewModel : WizardStepViewModel
         ];
 
         Attention = ReportAttention.Build(report, options);
-        Tables = report.Tables.Select((t, i) => new ReportTableRowViewModel(i + 1, t, TableRunStatuses.From(t, report.InterruptedTable))).ToList();
+        Tables = report.Tables.Count == 0 && report.FatalError is not null
+            ? report.Plan.Tables.Select((t, i) => new ReportTableRowViewModel(
+                i + 1,
+                new TableResult { Table = t, Status = TableStatus.NotCopied, Error = "Not started: the run stopped first." },
+                t.ReceivesData && options.CopyData ? TableRunStatus.NotStarted : TableRunStatus.Skipped)).ToList()
+            : report.Tables.Select((t, i) => new ReportTableRowViewModel(i + 1, t, TableRunStatuses.From(t, report.InterruptedTable))).ToList();
         VisibleTables = ProblemsOnly ? Tables.Where(t => t.IsProblem).ToList() : Tables;
         Issues.SetIssues(report.Issues);
 

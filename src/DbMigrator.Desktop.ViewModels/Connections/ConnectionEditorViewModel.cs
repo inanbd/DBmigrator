@@ -154,6 +154,8 @@ public sealed partial class ConnectionEditorViewModel : ObservableObject
                 field.Error = null;
             }
 
+            HideSecrets();
+
             AdditionalSettings = additionalSettings;
             IsRawMode = false;
             RawError = null;
@@ -236,6 +238,12 @@ public sealed partial class ConnectionEditorViewModel : ObservableObject
 
             AdditionalSettings = parsed.AdditionalSettings;
             Notice = movedSecret ? "Moved the password into the password box; it is never shown in the connection string." : null;
+            if (movedSecret)
+            {
+                // Out of the visible text, so it is not shown and cannot overwrite a corrected password later.
+                RawText = Format.Redact(RawText);
+                HideSecrets();
+            }
         }
         finally
         {
@@ -274,22 +282,35 @@ public sealed partial class ConnectionEditorViewModel : ObservableObject
         try
         {
             var movedSecret = false;
+            var moved = new List<string>();
             foreach (var (keyword, value) in parsed.Values)
             {
+                // Typed here most recently, so it replaces what the box held.
                 var field = AllFields.First(f => string.Equals(f.Keyword, keyword, StringComparison.OrdinalIgnoreCase));
-                if (field.Value.Length == 0)
+                field.Value = value;
+                if (field.Field.Kind == ConnectionFieldKind.Secret)
                 {
-                    field.Value = value;
+                    movedSecret = true;
                 }
-
-                movedSecret |= field.Field.Kind == ConnectionFieldKind.Secret;
+                else
+                {
+                    moved.Add(field.Field.Label);
+                }
             }
 
             AdditionalSettings = parsed.AdditionalSettings;
             if (movedSecret)
             {
-                Notice = "Moved the password from the additional settings into the password box.";
+                HideSecrets();
             }
+
+            Notice = (movedSecret, moved.Count) switch
+            {
+                (true, 0) => "Moved the password from the additional settings into the password box.",
+                (true, _) => $"Moved the password and {string.Join(", ", moved)} from the additional settings into their boxes.",
+                (false, > 0) => $"Moved {string.Join(", ", moved)} from the additional settings into {(moved.Count == 1 ? "its box" : "their boxes")}.",
+                _ => Notice,
+            };
         }
         finally
         {
@@ -298,6 +319,15 @@ public sealed partial class ConnectionEditorViewModel : ObservableObject
 
         Refresh();
         return true;
+    }
+
+    /// <summary>A password that arrives from elsewhere (a profile, pasted text) starts hidden.</summary>
+    private void HideSecrets()
+    {
+        foreach (var secret in AllFields.OfType<SecretFieldViewModel>())
+        {
+            secret.IsRevealed = false;
+        }
     }
 
     private void Refresh()

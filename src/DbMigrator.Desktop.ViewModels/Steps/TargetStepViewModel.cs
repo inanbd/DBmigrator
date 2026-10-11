@@ -74,7 +74,16 @@ public sealed partial class TargetStepViewModel(ShellServices services, Migratio
         return true;
     }
 
-    partial void OnScriptOnlyChanged(bool value) => RaiseCanAdvanceChanged();
+    partial void OnScriptOnlyChanged(bool value)
+    {
+        // Script-only mode let go of the target connection; migrating into a database needs it again.
+        if (!value && Session.ScriptOnly)
+        {
+            RequireReconnect();
+        }
+
+        RaiseCanAdvanceChanged();
+    }
 
     protected override Task ConnectCoreAsync(ResolvedConnection connection, CancellationToken cancellationToken) =>
         Session.ConnectTargetAsync(connection, cancellationToken);

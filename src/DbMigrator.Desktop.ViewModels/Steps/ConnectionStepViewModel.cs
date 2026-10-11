@@ -59,6 +59,10 @@ public abstract partial class ConnectionStepViewModel : WizardStepViewModel
     private string? _connectedFingerprint;
     private bool _profilesLoaded;
     private bool _loadingProfile;
+    private int _profileLoads;
+
+    /// <summary>The saved-connections file is from a newer version: it is shown but never written.</summary>
+    private bool _profilesReadOnly;
 
     protected ConnectionStepViewModel(ShellServices services, MigrationSession session, ConnectionRole role)
     {
@@ -68,6 +72,16 @@ public abstract partial class ConnectionStepViewModel : WizardStepViewModel
         Providers = (role == ConnectionRole.Source ? services.Providers.Sources : services.Providers.Targets).Select(p => new ProviderOption(p)).ToList();
         SelectedProvider = Providers.Count > 0 ? Providers[0] : null;
         CredentialStoreName = services.Credentials.DisplayName;
+
+        // One connection attempt at a time: a test finishing during a connect would overwrite its state.
+        PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(IsBusy))
+            {
+                TestConnectionCommand.NotifyCanExecuteChanged();
+                ConnectCommand.NotifyCanExecuteChanged();
+            }
+        };
     }
 
     protected ShellServices Services { get; }
@@ -166,6 +180,9 @@ public abstract partial class ConnectionStepViewModel : WizardStepViewModel
             var (reason, loaded) = await BackgroundWork.RunAsync(() => (credentials.ProbeAvailability(), profiles.Load()), cancellationToken);
             CredentialStoreUnavailableReason = reason;
             _allProfiles = loaded.Profiles.ToList();
+            _profilesReadOnly = loaded.IsReadOnly;
+            SaveProfileCommand.NotifyCanExecuteChanged();
+            DeleteProfileCommand.NotifyCanExecuteChanged();
             ProfileNotice = loaded.Notice;
             RefreshProfiles();
         }
@@ -208,7 +225,9 @@ public abstract partial class ConnectionStepViewModel : WizardStepViewModel
         }
     }
 
-    [RelayCommand(IncludeCancelCommand = true)]
+    private bool CanTryConnection() => !IsBusy;
+
+    [RelayCommand(IncludeCancelCommand = true, CanExecute = nameof(CanTryConnection))]
     private async Task TestConnectionAsync(CancellationToken cancellationToken)
     {
         if (!TryResolve(out var connection))
@@ -237,7 +256,7 @@ public abstract partial class ConnectionStepViewModel : WizardStepViewModel
     [ObservableProperty]
     public partial string? StatusTestPassed { get; private set; }
 
-    [RelayCommand(IncludeCancelCommand = true)]
+    [RelayCommand(IncludeCancelCommand = true, CanExecute = nameof(CanTryConnection))]
     private async Task ConnectAsync(CancellationToken cancellationToken)
     {
         if (!TryResolve(out var connection))
@@ -259,7 +278,9 @@ public abstract partial class ConnectionStepViewModel : WizardStepViewModel
         _connectedFingerprint = fingerprint;
         Check = _role == ConnectionRole.Source ? Session.SourceCheck : Session.TargetCheck;
         Findings = (Check?.Findings ?? []).Select(f => new IssueRowViewModel(f)).ToList();
-        Status = ConnectionStatus.Connected;
+
+        // The form may have been edited while connecting: then it no longer shows what is connected.
+        Status = Editor?.Fingerprint == fingerprint ? ConnectionStatus.Connected : ConnectionStatus.Changed;
         OnConnected();
         RaiseCanAdvanceChanged();
         await RecordUseAsync();
@@ -272,7 +293,9 @@ public abstract partial class ConnectionStepViewModel : WizardStepViewModel
     /// <summary>Called on the UI thread after a successful connect, to build the summary.</summary>
     protected abstract void OnConnected();
 
-    [RelayCommand]
+    private bool CanSaveProfile() => !_profilesReadOnly;
+
+    [RelayCommand(CanExecute = nameof(CanSaveProfile))]
     private async Task SaveProfileAsync()
     {
         if (SelectedProvider is not { } provider || Editor is not { } editor || !editor.Validate())
@@ -301,47 +324,49 @@ public abstract partial class ConnectionStepViewModel : WizardStepViewModel
         var keys = provider.Provider.Connection.SecretKeywords;
         var credentials = Services.Credentials;
         var profiles = Services.Profiles;
-        var profile = created.Profile;
-        string? storeError = null;
+        ConnectionProfile profile;
+        string? storeError;
         try
         {
-            storeError = await BackgroundWork.RunAsync(() =>
+            (profile, storeError) = await BackgroundWork.RunAsync(() =>
             {
-                string? error = null;
-                if (remember)
-                {
-                    try
-                    {
-                        foreach (var keyword in keys)
-                        {
-                            var key = ProfileFactory.SecretKey(id, keyword);
-                            if (secrets.TryGetValue(keyword, out var secret))
-                            {
-                                credentials.Save(key, secret);
-                            }
-                            else
-                            {
-                                credentials.Delete(key);
-                            }
-                        }
-                    }
-                    catch (CredentialStoreException ex)
-                    {
-                        error = ex.Message;
-                        profile = ProfileFactory.Create(id, name, provider.Provider, profile.Values, profile.AdditionalSettings, rememberPassword: false, profile.LastUsedUtc).Profile;
-                    }
-                }
-
-                if (!profile.RememberPassword)
+                // The profile file first: if it cannot be written, the password store is left as it was.
+                var saved = created.Profile;
+                profiles.Save(saved);
+                if (!remember)
                 {
                     DeleteSecrets(credentials, keys, id);
+                    return (saved, (string?)null);
                 }
 
-                profiles.Save(profile);
-                return error;
+                try
+                {
+                    foreach (var keyword in keys)
+                    {
+                        var key = ProfileFactory.SecretKey(id, keyword);
+                        if (secrets.TryGetValue(keyword, out var secret))
+                        {
+                            credentials.Save(key, secret);
+                        }
+                        else
+                        {
+                            credentials.Delete(key);
+                        }
+                    }
+
+                    return (saved, (string?)null);
+                }
+                catch (CredentialStoreException ex)
+                {
+                    // Keep no half-saved secrets, and say in the file that there is no password to find.
+                    DeleteSecrets(credentials, keys, id);
+                    var withoutPassword = ProfileFactory.Create(id, name, provider.Provider, saved.Values, saved.AdditionalSettings, rememberPassword: false, saved.LastUsedUtc).Profile;
+                    profiles.Save(withoutPassword);
+                    return (withoutPassword, ex.Message);
+                }
             }, CancellationToken.None);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        catch (Exception ex) when (IsProfileStoreError(ex))
         {
             ShowError(ex);
             return;
@@ -355,13 +380,22 @@ public abstract partial class ConnectionStepViewModel : WizardStepViewModel
         RememberPassword = profile.RememberPassword;
         _allProfiles.RemoveAll(p => p.Id == profile.Id);
         _allProfiles.Add(profile);
+
+        // Selecting the saved profile must not load it back over the form: it already shows it.
+        var loading = _loadingProfile;
         _loadingProfile = true;
-        RefreshProfiles();
-        SelectedProfile = Profiles.FirstOrDefault(p => p.Profile.Id == profile.Id);
-        _loadingProfile = false;
+        try
+        {
+            RefreshProfiles();
+            SelectedProfile = Profiles.FirstOrDefault(p => p.Profile.Id == profile.Id);
+        }
+        finally
+        {
+            _loadingProfile = loading;
+        }
     }
 
-    private bool CanDeleteProfile() => SelectedProfile is not null;
+    private bool CanDeleteProfile() => SelectedProfile is not null && !_profilesReadOnly;
 
     [RelayCommand(CanExecute = nameof(CanDeleteProfile))]
     private async Task DeleteProfileAsync()
@@ -385,15 +419,17 @@ public abstract partial class ConnectionStepViewModel : WizardStepViewModel
         var keys = provider?.Connection.SecretKeywords ?? [];
         var credentials = Services.Credentials;
         var profiles = Services.Profiles;
+        string? secretError;
         try
         {
-            await BackgroundWork.RunAsync(() =>
+            secretError = await BackgroundWork.RunAsync(() =>
             {
-                DeleteSecrets(credentials, keys, selected.Profile.Id);
+                // The profile first: if the file cannot be changed, its passwords stay where they are.
                 profiles.Delete(selected.Profile.Id);
+                return DeleteSecrets(credentials, keys, selected.Profile.Id);
             }, CancellationToken.None);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (IsProfileStoreError(ex))
         {
             ShowError(ex);
             return;
@@ -402,6 +438,9 @@ public abstract partial class ConnectionStepViewModel : WizardStepViewModel
         _allProfiles.RemoveAll(p => p.Id == selected.Profile.Id);
         SelectedProfile = null;
         RefreshProfiles();
+        ProfileNotice = secretError is null
+            ? null
+            : $"The connection was removed, but its password could not be removed from {CredentialStoreName}: {secretError}";
     }
 
     [RelayCommand]
@@ -413,19 +452,39 @@ public abstract partial class ConnectionStepViewModel : WizardStepViewModel
         }
     }
 
-    private static void DeleteSecrets(ICredentialStore credentials, IReadOnlyList<string> keys, Guid id)
+    /// <summary>Removes a profile's stored secrets; returns why one could not be removed, or null.</summary>
+    private static string? DeleteSecrets(ICredentialStore credentials, IReadOnlyList<string> keys, Guid id)
     {
+        string? failure = null;
         foreach (var keyword in keys)
         {
             try
             {
                 credentials.Delete(ProfileFactory.SecretKey(id, keyword));
             }
-            catch (CredentialStoreException)
+            catch (CredentialStoreException ex)
             {
-                // Best effort: an entry that cannot be removed is harmless without its profile.
+                failure ??= ex.Message;
             }
         }
+
+        return failure;
+    }
+
+    /// <summary>Failures of the saved-connections file that are reported, not crashed on.</summary>
+    private static bool IsProfileStoreError(Exception ex) =>
+        ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.Text.Json.JsonException;
+
+    /// <summary>Forgets the connection shown as current, so Connect is needed again.</summary>
+    protected void RequireReconnect()
+    {
+        _connectedFingerprint = null;
+        if (Status is ConnectionStatus.Connected or ConnectionStatus.Changed)
+        {
+            Status = ConnectionStatus.Idle;
+        }
+
+        RaiseCanAdvanceChanged();
     }
 
     private bool TryResolve(out ResolvedConnection connection)
@@ -477,6 +536,9 @@ public abstract partial class ConnectionStepViewModel : WizardStepViewModel
             return;
         }
 
+        // Reading the password store can wait on an unlock prompt; a later choice must win.
+        var load = ++_profileLoads;
+        var loading = _loadingProfile;
         _loadingProfile = true;
         try
         {
@@ -484,7 +546,7 @@ public abstract partial class ConnectionStepViewModel : WizardStepViewModel
         }
         finally
         {
-            _loadingProfile = false;
+            _loadingProfile = loading;
         }
 
         IReadOnlyDictionary<string, string> secrets = new Dictionary<string, string>();
@@ -510,6 +572,11 @@ public abstract partial class ConnectionStepViewModel : WizardStepViewModel
             }
         }
 
+        if (load != _profileLoads || SelectedProfile?.Profile.Id != profile.Id)
+        {
+            return;
+        }
+
         Editor?.Load(profile.Values, profile.AdditionalSettings, secrets);
         RememberPassword = profile.RememberPassword;
         ProfileNotice = missing;
@@ -517,7 +584,7 @@ public abstract partial class ConnectionStepViewModel : WizardStepViewModel
 
     private async Task RecordUseAsync()
     {
-        if (SelectedProfile is not { } selected)
+        if (SelectedProfile is not { } selected || _profilesReadOnly)
         {
             return;
         }
@@ -537,7 +604,7 @@ public abstract partial class ConnectionStepViewModel : WizardStepViewModel
             _allProfiles.RemoveAll(p => p.Id == used.Id);
             _allProfiles.Add(used);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (IsProfileStoreError(ex))
         {
             Services.Log.Error("Recording when a profile was last used failed.", ex);
         }
@@ -556,9 +623,16 @@ public abstract partial class ConnectionStepViewModel : WizardStepViewModel
 
         if (keep is not null)
         {
+            var loading = _loadingProfile;
             _loadingProfile = true;
-            SelectedProfile = Profiles.FirstOrDefault(p => p.Profile.Id == keep);
-            _loadingProfile = false;
+            try
+            {
+                SelectedProfile = Profiles.FirstOrDefault(p => p.Profile.Id == keep);
+            }
+            finally
+            {
+                _loadingProfile = loading;
+            }
         }
     }
 
