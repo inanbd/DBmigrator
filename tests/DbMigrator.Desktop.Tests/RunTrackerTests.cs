@@ -144,4 +144,30 @@ public sealed class RunTrackerTests
         Assert.All(tracker.Rows, r => Assert.Equal(TableRunStatus.Skipped, r.Status));
         Assert.Equal(0, tracker.DataTableCount);
     }
+
+    [Fact]
+    public void Counters_count_from_one_and_unchecked_counts_are_not_called_a_match()
+    {
+        var migration = Plans.Prepare(estimate: 0);
+        var tracker = new RunTracker(migration, _time);
+        var a = migration.Table(TestServices.A);
+        var row = tracker.Row(TestServices.A);
+        var changed = new List<string?>();
+        row.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+        tracker.Apply(new TableCopyStarted(a).At(_time.GetUtcNow()));
+        tracker.Apply(new TableCopyFinished(new TableResult { Table = a, Status = TableStatus.Copied }).At(_time.GetUtcNow()));
+        tracker.Apply(new StepStarted(migration.Script.AfterData[0], 0, migration.Script.AfterData.Count).At(_time.GetUtcNow()));
+        tracker.Apply(new TableVerifyStarted(a, 0, 4).At(_time.GetUtcNow()));
+        tracker.Apply(new TableVerified(new TableResult { Table = a, Status = TableStatus.Copied, Error = "Row counts could not be checked: timeout" }).At(_time.GetUtcNow()));
+
+        Assert.Equal(1, tracker.CurrentStepIndex);
+        Assert.Equal(1, tracker.VerifyIndex);
+        Assert.Equal(TableRunStatus.Copied, row.Status);
+        Assert.Equal("Row counts could not be checked: timeout", row.Message);
+
+        // An empty table never reports progress: its bar is refreshed by the status alone.
+        Assert.Contains(nameof(TableProgressRowViewModel.Percent), changed);
+        Assert.Equal(100, row.Percent);
+    }
 }

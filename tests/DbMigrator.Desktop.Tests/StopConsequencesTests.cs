@@ -67,7 +67,7 @@ public sealed class StopConsequencesTests
         var tracker = new RunTracker(migration, _time);
         tracker.Apply(new PhaseStarted(MigrationPhase.CreatingConstraints).At(_time.GetUtcNow()));
         var first = migration.Script.AfterData[0];
-        tracker.Apply(new StepStarted(first, 1, migration.Script.AfterData.Count).At(_time.GetUtcNow()));
+        tracker.Apply(new StepStarted(first, 0, migration.Script.AfterData.Count).At(_time.GetUtcNow()));
         tracker.Apply(new StepFinished(new StepResult(first, TimeSpan.FromSeconds(1))).At(_time.GetUtcNow()));
 
         var total = migration.Script.AfterData.Count;
@@ -93,7 +93,44 @@ public sealed class StopConsequencesTests
         tracker.Apply(new TableVerified(new TableResult { Table = a, Status = TableStatus.Copied, RowsCopied = 5, SourceRowCount = 5, TargetRowCount = 5 }).At(_time.GetUtcNow()));
 
         Assert.Equal(
-            ["All data is copied and keys are built. Row counts for 3 tables will not be checked."],
+            ["All data is copied. The keys and indexes are done. Row counts for 3 tables will not be checked."],
             StopConsequences.From(tracker));
+    }
+
+    [Fact]
+    public void A_table_emptied_at_the_start_and_being_copied_is_named_on_its_own()
+    {
+        // B, C and D are all emptied at the start; the copy is on B.
+        var migration = Plans.Prepare(decisions: new Dictionary<Core.Schema.QualifiedName, TableExistsAction>
+        {
+            [TestServices.B] = TableExistsAction.Truncate,
+            [TestServices.C] = TableExistsAction.Truncate,
+            [TestServices.D] = TableExistsAction.Truncate,
+        });
+        var tracker = new RunTracker(migration, _time);
+        tracker.Apply(new PhaseStarted(MigrationPhase.CopyingData).At(_time.GetUtcNow()));
+        var a = migration.Table(TestServices.A);
+        tracker.Apply(new TableCopyStarted(a).At(_time.GetUtcNow()));
+        tracker.Apply(new TableCopyFinished(new TableResult { Table = a, Status = TableStatus.Copied, RowsCopied = 5 }).At(_time.GetUtcNow()));
+        tracker.Apply(new TableCopyStarted(migration.Table(TestServices.B)).At(_time.GetUtcNow()));
+
+        var bullets = StopConsequences.From(tracker);
+
+        Assert.Equal("The table being copied, dbo.B, is rolled back; none of its rows are kept. It was emptied at the start of the run, so public.b will stay EMPTY until you run again.", bullets[1]);
+        Assert.Equal("2 tables are not copied yet. 2 of them were emptied or dropped and recreated at the start of the run (public.c, public.d) and will stay EMPTY until you run again.", bullets[2]);
+    }
+
+    [Fact]
+    public void Later_phases_do_not_claim_a_copy_that_failed()
+    {
+        var migration = Plans.Prepare();
+        var tracker = new RunTracker(migration, _time);
+        tracker.Apply(new PhaseStarted(MigrationPhase.CopyingData).At(_time.GetUtcNow()));
+        var a = migration.Table(TestServices.A);
+        tracker.Apply(new TableCopyStarted(a).At(_time.GetUtcNow()));
+        tracker.Apply(new TableCopyFinished(new TableResult { Table = a, Status = TableStatus.Failed, Error = "disk full" }).At(_time.GetUtcNow()));
+        tracker.Apply(new PhaseStarted(MigrationPhase.CreatingConstraints).At(_time.GetUtcNow()));
+
+        Assert.StartsWith("The data copy is over; 1 table failed. 0 of", StopConsequences.From(tracker)[0], StringComparison.Ordinal);
     }
 }

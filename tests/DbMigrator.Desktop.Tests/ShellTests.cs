@@ -177,4 +177,41 @@ public sealed class ShellTests
         Assert.True(wizard.Shell.Session.Report!.Cancelled);
         Assert.Single(test.Reports.Saved);
     });
+
+    [Fact]
+    public Task Keep_running_keeps_the_window_even_if_the_run_ended_meanwhile() => UiThreadContext.RunAsync(async () =>
+    {
+        var test = TestServices.Create();
+        var gate = new TestSupport.Gate();
+        test.SourceDb.Pauses[TestServices.B] = (2, gate);
+        var wizard = new WizardDriver(test);
+        await wizard.ToRunAsync();
+        var run = wizard.Shell.Run.StartCommand.ExecuteAsync(null);
+        await Wait.ForAsync(gate.Reached, "the copy to reach dbo.B");
+
+        // The question is open while the run finishes; the answer is "Keep running".
+        var closing = wizard.Shell.ConfirmCloseAsync();
+        await Wait.UntilAsync(() => test.DialogHost.IsOpen, "the close question");
+        gate.Release();
+        await Wait.ForAsync(run, "the run to finish");
+        ((ConfirmDialogViewModel)test.DialogHost.Current!).CancelCommand.Execute(null);
+
+        Assert.False(await closing);
+    });
+
+    [Fact]
+    public Task After_a_run_the_report_can_be_reached_again_through_review() => UiThreadContext.RunAsync(async () =>
+    {
+        var wizard = new WizardDriver(TestServices.Create());
+        await wizard.ToRunAsync();
+        await wizard.Shell.Run.StartCommand.ExecuteAsync(null);
+        Assert.Same(wizard.Shell.Report, wizard.Shell.Current);
+
+        await wizard.Shell.GoToStepCommand.ExecuteAsync(wizard.Shell.Review);
+        await wizard.Shell.GoToStepCommand.ExecuteAsync(wizard.Shell.Report);
+
+        Assert.Same(wizard.Shell.Report, wizard.Shell.Current);
+        Assert.Equal(RunState.Finished, wizard.Shell.Run.Stage);
+        Assert.Equal("Finished", wizard.Shell.Run.CurrentActivity);
+    });
 }

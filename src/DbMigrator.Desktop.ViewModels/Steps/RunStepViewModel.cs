@@ -45,6 +45,9 @@ public sealed partial class RunStepViewModel : WizardStepViewModel
     private readonly ShellServices _services;
     private readonly MigrationSession _session;
     private PreparedMigration? _prepared;
+
+    /// <summary>The plan as reviewed, before the pre-flight check replaced it with an identical, fresher one.</summary>
+    private PreparedMigration? _reviewed;
     private RunTracker? _tracker;
     private RunProgressHub? _hub;
     private ThroughputEstimator? _estimator;
@@ -185,8 +188,10 @@ public sealed partial class RunStepViewModel : WizardStepViewModel
             return Task.CompletedTask;
         }
 
-        // A plan reviewed since the last visit (or since the last run) starts over at Ready.
-        if (_session.Prepared is { } prepared && !ReferenceEquals(prepared, _prepared))
+        // A plan reviewed since the last visit (or since the last run) starts over at Ready. Passing
+        // through Review unchanged after a run hands back the reviewed plan; the finished run stays.
+        var sameRun = Stage == RunState.Finished && ReferenceEquals(_session.Prepared, _reviewed);
+        if (_session.Prepared is { } prepared && !ReferenceEquals(prepared, _prepared) && !sameRun)
         {
             ShowReady(prepared);
         }
@@ -203,6 +208,7 @@ public sealed partial class RunStepViewModel : WizardStepViewModel
         }
 
         _prepared = null;
+        _reviewed = null;
         _tracker = null;
         _hub = null;
         _estimator = null;
@@ -234,7 +240,8 @@ public sealed partial class RunStepViewModel : WizardStepViewModel
             "Stop and close",
             "Keep running",
             IsDestructive: true));
-        if (!confirmed && IsRunning)
+        // "Keep running" always keeps the window, even if the run ended while the question was open.
+        if (!confirmed)
         {
             return false;
         }
@@ -255,6 +262,7 @@ public sealed partial class RunStepViewModel : WizardStepViewModel
     private async Task StartAsync()
     {
         var reviewed = _session.Prepared ?? throw new InvalidOperationException("Review the plan first.");
+        _reviewed = reviewed;
         var finished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _runFinished = finished;
         _stopBeforeRun = false;
@@ -386,7 +394,7 @@ public sealed partial class RunStepViewModel : WizardStepViewModel
             DrainAll();
             tracker.ApplyReport(report);
             _session.Report = report;
-            Refresh();
+            Refresh(final: report);
             _services.Log.Info(report.Succeeded ? "Run succeeded." : report.Cancelled ? "Run cancelled." : "Run finished with problems.");
             _session.Autosave = await AutosaveAsync();
             Stage = RunState.Finished;
@@ -502,7 +510,8 @@ public sealed partial class RunStepViewModel : WizardStepViewModel
     }
 
     /// <summary>Copies the tracker's state into the bound properties.</summary>
-    private void Refresh()
+    /// <param name="final">The finished run's report: the screen then shows the outcome instead of live activity.</param>
+    private void Refresh(MigrationReport? final = null)
     {
         if (_tracker is not { } tracker || _estimator is not { } estimator)
         {
@@ -516,7 +525,7 @@ public sealed partial class RunStepViewModel : WizardStepViewModel
         RowsCopied = tracker.RowsCopied;
         RowsPerSecond = estimator.RowsPerSecond;
         OverallPercent = Math.Round(estimator.Fraction * 100, 1);
-        EtaText = estimator.Remaining is { } remaining ? $"{Humanize.Remaining(remaining)} left in the copy (estimate)" : null;
+        EtaText = final is null && estimator.Remaining is { } remaining ? $"{Humanize.Remaining(remaining)} left in the copy (estimate)" : null;
 
         var estimate = tracker.Rows.Where(r => r.Status != TableRunStatus.Skipped).Sum(r => r.EstimatedRows ?? 0);
         var parts = new List<string>
@@ -525,7 +534,7 @@ public sealed partial class RunStepViewModel : WizardStepViewModel
                 ? $"{Humanize.Count(RowsCopied)} of ~{Humanize.Count(estimate)} rows ({OverallPercent:0}%)"
                 : $"{Humanize.Count(RowsCopied)} rows copied ({OverallPercent:0}%; the catalog has no row estimates)",
         };
-        if (RowsPerSecond > 0 && tracker.Phase == MigrationPhase.CopyingData)
+        if (final is null && RowsPerSecond > 0 && tracker.Phase == MigrationPhase.CopyingData)
         {
             parts.Add($"{Humanize.Rate(RowsPerSecond)} rows/s");
         }
@@ -540,10 +549,16 @@ public sealed partial class RunStepViewModel : WizardStepViewModel
 
         FailedCount = tracker.TablesFailed + tracker.StepsFailed;
         StepsDone = tracker.StepsDone;
-        var finished = tracker.Rows.Count(r => r.Status is not (TableRunStatus.Waiting or TableRunStatus.Copying or TableRunStatus.Skipped));
+        // Tables the run is through with: copied, checked or failed. Not ones a stop left unreached or rolled back.
+        var finished = tracker.Rows.Count(r => r.Status is TableRunStatus.Copied or TableRunStatus.Verified or TableRunStatus.Mismatch or TableRunStatus.Failed);
         CountersText = $"Tables {finished:N0} of {tracker.DataTableCount:N0} · Failed {FailedCount:N0} · Steps {StepsDone:N0} of {StepsTotal:N0}";
 
-        if (Stage != RunState.Stopping)
+        if (final is not null)
+        {
+            CurrentActivity = final.Cancelled ? "Cancelled" : final.FatalError is not null ? "Stopped" : final.Succeeded ? "Finished" : "Finished with problems";
+            CurrentActivityDetail = null;
+        }
+        else if (Stage != RunState.Stopping)
         {
             (CurrentActivity, CurrentActivityDetail) = Activity(tracker, now);
         }

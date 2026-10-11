@@ -42,7 +42,7 @@ public sealed partial class TableProgressRowViewModel : ObservableObject
     public long? EstimatedRows => Table.Source.EstimatedRowCount;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(StatusText), nameof(IsProblem), nameof(IsDone), nameof(IsActive))]
+    [NotifyPropertyChangedFor(nameof(StatusText), nameof(IsProblem), nameof(IsDone), nameof(IsActive), nameof(Percent), nameof(IsIndeterminate))]
     public partial TableRunStatus Status { get; set; }
 
     public string StatusText => TableRunStatuses.Describe(Status);
@@ -274,7 +274,7 @@ public sealed class RunTracker
                 break;
             case StepStarted step:
                 CurrentStep = step.Step;
-                CurrentStepIndex = step.Index;
+                CurrentStepIndex = step.Index + 1; // the engine counts from 0
                 CurrentStepStartedAt = timed.At;
                 break;
             case StepFinished { Result: var stepResult }:
@@ -288,13 +288,14 @@ public sealed class RunTracker
                 break;
             case TableVerifyStarted verify:
                 Verifying = _byName[verify.Table.Source.Name];
-                VerifyIndex = verify.Index;
+                VerifyIndex = verify.Index + 1; // the engine counts from 0
                 VerifyCount = verify.Count;
                 VerifyStartedAt = timed.At;
                 break;
             case TableVerified { Result: var verified }:
                 var verifiedRow = _byName[verified.Table.Source.Name];
-                verifiedRow.Status = verified.Status == TableStatus.CountMismatch ? TableRunStatus.Mismatch : TableRunStatus.Verified;
+                // A table whose counts could not be read stays Copied, with the reason as its message.
+                verifiedRow.Status = TableRunStatuses.From(verified, interrupted: null);
                 verifiedRow.Message = verified.Error;
                 if (verified.Status == TableStatus.CountMismatch)
                 {

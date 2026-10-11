@@ -12,6 +12,7 @@ public static class StopConsequences
     {
         var bullets = new List<string>();
         var steps = tracker.StepsTotal;
+        var options = tracker.Migration.Options;
         switch (tracker.Phase)
         {
             case null or MigrationPhase.CreatingTables:
@@ -23,13 +24,13 @@ public static class StopConsequences
                 bullets.Add($"Tables already copied stay: {Humanize.Plural(copied.Count, "table")}, {Humanize.Count(copied.Sum(r => r.RowsCopied))} rows.");
                 if (tracker.Copying is { } current)
                 {
-                    bullets.Add($"The table being copied, {current.Source}, is rolled back; none of its rows are kept.");
+                    bullets.Add(EmptiedAtStart(current)
+                        ? $"The table being copied, {current.Source}, is rolled back; none of its rows are kept. It was emptied at the start of the run, so {current.Table.Target} will stay EMPTY until you run again."
+                        : $"The table being copied, {current.Source}, is rolled back; none of its rows are kept.");
                 }
 
                 var notYet = tracker.Rows.Where(r => r.Status == TableRunStatus.Waiting).ToList();
-                var emptied = notYet.Append(tracker.Copying).OfType<TableProgressRowViewModel>()
-                    .Where(r => r.Table.Action is TableAction.Truncate or TableAction.DropAndCreate)
-                    .ToList();
+                var emptied = notYet.Where(EmptiedAtStart).ToList();
                 var notYetText = $"{Humanize.Plural(notYet.Count, "table is", "tables are")} not copied yet.";
                 if (emptied.Count > 0)
                 {
@@ -46,17 +47,32 @@ public static class StopConsequences
                 break;
 
             case MigrationPhase.CreatingConstraints:
-                bullets.Add($"All data is copied. {tracker.StepsDone:N0} of {steps:N0} key and index steps are built; "
+                bullets.Add($"{CopyOutcome(tracker, options.CopyData)} {tracker.StepsDone:N0} of {steps:N0} key and index steps are built; "
                     + $"the remaining {steps - tracker.StepsDone:N0} will not run (their SQL will be in the report).");
                 break;
 
             default:
                 var notChecked = tracker.Rows.Count(r => r.Status == TableRunStatus.Copied);
-                bullets.Add($"All data is copied and keys are built. Row counts for {Humanize.Plural(notChecked, "table")} will not be checked.");
+                bullets.Add($"{CopyOutcome(tracker, options.CopyData)} The keys and indexes are done. Row counts for {Humanize.Plural(notChecked, "table")} will not be checked.");
                 break;
         }
 
         return bullets;
+    }
+
+    /// <summary>Emptied, or dropped and recreated, in the opening transaction: stopping before it is reloaded leaves it empty.</summary>
+    private static bool EmptiedAtStart(TableProgressRowViewModel row) => row.Table.Action is TableAction.Truncate or TableAction.DropAndCreate;
+
+    /// <summary>How the data copy ended, in one sentence, without claiming more than happened.</summary>
+    private static string CopyOutcome(RunTracker tracker, bool copyData)
+    {
+        if (!copyData)
+        {
+            return "No data was to be copied.";
+        }
+
+        var failed = tracker.Rows.Count(r => r.Status == TableRunStatus.Failed);
+        return failed == 0 ? "All data is copied." : $"The data copy is over; {Humanize.Plural(failed, "table")} failed.";
     }
 
     private static string Names(List<TableProgressRowViewModel> rows) =>
