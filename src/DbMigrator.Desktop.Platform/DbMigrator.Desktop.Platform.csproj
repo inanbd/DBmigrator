@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>OS password stores and local files (profiles, settings, reports, log) for the DbMigrator desktop app.</Description>
+    <RootNamespace>DbMigrator.Desktop.Platform</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DbMigrator.Desktop.ViewModels\DbMigrator.Desktop.ViewModels.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DbMigrator.Desktop.Tests" />
+  </ItemGroup>
+
+</Project>

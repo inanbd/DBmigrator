@@ -13,4 +13,12 @@ public sealed class ArchitectureTests
         Assert.DoesNotContain("Microsoft.Data.SqlClient", references);
         Assert.DoesNotContain("Npgsql", references);
     }
+
+    [Fact]
+    public void Platform_services_use_no_ui_toolkit()
+    {
+        var references = typeof(DbMigrator.Desktop.Platform.AppPaths).Assembly.GetReferencedAssemblies().Select(a => a.Name!).ToList();
+
+        Assert.DoesNotContain(references, name => name.StartsWith("Avalonia", StringComparison.Ordinal));
+    }
 }
