@@ -10,6 +10,7 @@
     <ProjectReference Include="..\..\src\DbMigrator.Providers.SqlServer\DbMigrator.Providers.SqlServer.csproj" />
     <ProjectReference Include="..\..\src\DbMigrator.Providers.PostgreSql\DbMigrator.Providers.PostgreSql.csproj" />
     <ProjectReference Include="..\..\src\DbMigrator.Providers\DbMigrator.Providers.csproj" />
+    <ProjectReference Include="..\..\src\DbMigrator.Cli\DbMigrator.Cli.csproj" />
     <ProjectReference Include="..\DbMigrator.TestSupport\DbMigrator.TestSupport.csproj" />
   </ItemGroup>
 

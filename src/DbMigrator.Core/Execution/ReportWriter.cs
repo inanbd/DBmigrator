@@ -125,8 +125,11 @@ public static class ReportWriter
         _ => "checking row counts",
     };
 
+    /// <summary>"12.3s", or "1:02:13"; hours keep counting past a day ("26:30:00").</summary>
     public static string FormatElapsed(TimeSpan elapsed) =>
-        elapsed.TotalSeconds < 60 ? $"{elapsed.TotalSeconds:0.0}s" : elapsed.ToString(@"h\:mm\:ss", CultureInfo.InvariantCulture);
+        elapsed.TotalSeconds < 60
+            ? elapsed.TotalSeconds.ToString("0.0", CultureInfo.InvariantCulture) + "s"
+            : ((long)elapsed.TotalHours).ToString(CultureInfo.InvariantCulture) + elapsed.ToString(@"\:mm\:ss", CultureInfo.InvariantCulture);
 
     /// <summary>
     /// Tables that a cancelled run left empty: emptied or dropped and recreated in the opening

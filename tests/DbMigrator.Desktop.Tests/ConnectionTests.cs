@@ -80,6 +80,19 @@ public sealed class ConnectionEditorTests
     }
 
     [Fact]
+    public void A_password_is_used_exactly_as_typed()
+    {
+        var editor = SqlServerEditor();
+        WizardDriver.Field(editor, "Data Source").Value = "  sql01 ";
+        WizardDriver.Field(editor, "Password").Value = " pass word ";
+
+        var values = editor.CurrentValues();
+
+        Assert.Equal("sql01", values["Data Source"]);
+        Assert.Equal(" pass word ", values["Password"]);
+    }
+
+    [Fact]
     public void The_fingerprint_changes_with_any_value()
     {
         var editor = SqlServerEditor();

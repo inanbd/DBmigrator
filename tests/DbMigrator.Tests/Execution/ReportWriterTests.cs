@@ -58,4 +58,22 @@ public class ReportWriterTests
         Assert.Contains("FAILED       dbo.Customers -> public.customers: 0 rows. Failed after reading 17 row(s)", text);
         Assert.Contains("MISMATCH     dbo.Wide -> public.wide: 3,500,000 rows (source 3,500,001, target 3,500,000).", text);
     }
+
+    [Theory]
+    [InlineData(3.04, "3.0s")]
+    [InlineData(3_733, "1:02:13")]
+    [InlineData(95_400, "26:30:00")]
+    public void Durations_keep_counting_hours_past_a_day_in_any_culture(double seconds, string expected)
+    {
+        var culture = CultureInfo.CurrentCulture;
+        CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("de-DE");
+        try
+        {
+            Assert.Equal(expected, ReportWriter.FormatElapsed(TimeSpan.FromSeconds(seconds)));
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = culture;
+        }
+    }
 }

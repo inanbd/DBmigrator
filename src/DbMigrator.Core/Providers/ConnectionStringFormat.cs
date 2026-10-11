@@ -113,7 +113,7 @@ public sealed class ConnectionStringFormat
         var errors = new List<ConnectionFieldError>();
         foreach (var field in Fields.Where(f => IsVisible(f, values)))
         {
-            var value = values.GetValueOrDefault(field.Keyword)?.Trim() ?? "";
+            var value = ValueAsTyped(field, values) ?? "";
             if (value.Length == 0)
             {
                 if (field.IsRequired)
@@ -163,7 +163,7 @@ public sealed class ConnectionStringFormat
 
         foreach (var field in Fields.Where(f => IsVisible(f, values)))
         {
-            var value = values.GetValueOrDefault(field.Keyword)?.Trim();
+            var value = ValueAsTyped(field, values);
             if (string.IsNullOrEmpty(value))
             {
                 continue;
@@ -254,6 +254,13 @@ public sealed class ConnectionStringFormat
             _ => "(no server)",
         };
         return user is null ? text : $"{text} as {user}";
+    }
+
+    /// <summary>A field's value: trimmed, except a secret, whose spaces may be part of it.</summary>
+    private static string? ValueAsTyped(ConnectionField field, IReadOnlyDictionary<string, string> values)
+    {
+        var value = values.GetValueOrDefault(field.Keyword);
+        return field.Kind == ConnectionFieldKind.Secret ? value : value?.Trim();
     }
 
     private string? ValueOf(string keyword, IReadOnlyDictionary<string, string> values)

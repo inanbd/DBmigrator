@@ -36,6 +36,18 @@ public class ConnectionStringFormatTests
     }
 
     [Fact]
+    public void Passwords_keep_their_spaces()
+    {
+        var values = new Dictionary<string, string> { ["Data Source"] = " sql01 ", ["Initial Catalog"] = "Shop", ["User ID"] = "sa", ["Password"] = " Tr0ub4dor " };
+
+        var built = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(SqlServer.Build(values, ""));
+
+        Assert.Equal(" Tr0ub4dor ", built.Password);
+        Assert.Equal("sql01", built.DataSource);
+        Assert.Empty(SqlServer.Validate(values));
+    }
+
+    [Fact]
     public void Build_and_parse_round_trip()
     {
         var values = new Dictionary<string, string>

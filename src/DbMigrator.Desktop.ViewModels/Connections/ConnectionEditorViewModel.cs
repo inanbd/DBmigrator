@@ -81,8 +81,11 @@ public sealed partial class ConnectionEditorViewModel : ObservableObject
     public partial string Description { get; private set; } = "";
 
     /// <summary>Every non-empty value, secrets included.</summary>
+    /// <summary>Filled-in values by keyword. Passwords are kept exactly as typed; other values are trimmed.</summary>
     public IReadOnlyDictionary<string, string> CurrentValues() =>
-        AllFields.Where(f => f.Value.Trim().Length > 0).ToDictionary(f => f.Keyword, f => f.Value.Trim(), StringComparer.OrdinalIgnoreCase);
+        AllFields.Select(f => (f.Keyword, Value: f.Field.Kind == ConnectionFieldKind.Secret ? f.Value : f.Value.Trim()))
+            .Where(f => f.Value.Length > 0)
+            .ToDictionary(f => f.Keyword, f => f.Value, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Secret values that are filled in and visible, by keyword.</summary>
     public IReadOnlyDictionary<string, string> SecretValues() =>

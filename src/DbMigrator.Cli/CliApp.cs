@@ -15,6 +15,9 @@ public static class CliApp
     private const string SourceVariable = "DBMIGRATOR_SOURCE";
     private const string TargetVariable = "DBMIGRATOR_TARGET";
 
+    /// <summary>How long a cancelled run may take to roll back and report before the process exits anyway.</summary>
+    private static readonly TimeSpan CancelGracePeriod = TimeSpan.FromMinutes(2);
+
     private static ProviderCatalog Providers => BuiltInProviders.Catalog;
 
     public static Task<int> RunAsync(string[] args, TextWriter output, TextWriter error, CancellationToken cancellationToken = default)
@@ -26,8 +29,17 @@ public static class CliApp
             MigrateCommand(output, error),
         };
 
-        return root.Parse(args).InvokeAsync(new InvocationConfiguration { Output = output, Error = error }, cancellationToken);
+        // Ctrl+C cancels the run; the engine then rolls back the table being copied and the partial
+        // report is printed. That can take more than System.CommandLine's default 2 seconds.
+        var configuration = new InvocationConfiguration { Output = output, Error = error, ProcessTerminationTimeout = CancelGracePeriod };
+        return root.Parse(args).InvokeAsync(configuration, cancellationToken);
     }
+
+    /// <summary>One line on stderr that agrees with the report printed above it.</summary>
+    public static string CancelledLine(MigrationReport report) =>
+        report.CancelledDuring == MigrationPhase.CreatingTables ? "Cancelled. Nothing was changed."
+        : report.InterruptedTable is { } table ? $"Cancelled. {table.Source.Name} was being copied and was rolled back; tables already copied remain."
+        : "Cancelled. Every table was copied; see the summary above for what did not run.";
 
     private static Command ProvidersCommand(TextWriter output)
     {
@@ -158,7 +170,7 @@ public static class CliApp
             catch (MigrationCancelledException ex)
             {
                 reporter.WriteReport(ex.PartialReport);
-                error.WriteLine("Cancelled. The table being copied was rolled back; tables already copied remain.");
+                error.WriteLine(CancelledLine(ex.PartialReport));
                 return Cancelled;
             }
             catch (OperationCanceledException)

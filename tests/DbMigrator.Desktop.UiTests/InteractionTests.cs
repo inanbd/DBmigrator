@@ -283,7 +283,9 @@ public sealed class WizardFlowTests(AvaloniaFixture fixture)
 
         Assert.Equal("Migration succeeded", ui.Find<TextBlock>("Headline").Text);
         Assert.Equal(3, ui.Shell.Session.Report!.Tables.Count);
-        Assert.DoesNotContain(test.TargetDb.Statements, s => s.Sql.Contains("public.d", StringComparison.Ordinal));
+        Assert.DoesNotContain(test.TargetDb.Statements, s => s.Sql.Contains("\"public\".\"d\"", StringComparison.Ordinal));
+        Assert.Contains(test.TargetDb.Statements, s => s.Sql.Contains("\"public\".\"c\"", StringComparison.Ordinal));
+        Assert.Empty(test.TargetDb.RowsOf(new QualifiedName("public", "d")));
         ui.Window.Close();
     });
 }

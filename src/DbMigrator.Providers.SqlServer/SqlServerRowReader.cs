@@ -11,6 +11,7 @@ internal sealed class SqlServerRowReader : IRowReader
     private readonly SqlCommand _command;
     private readonly SqlDataReader _reader;
     private readonly Func<SqlDataReader, int, object>[] _getters;
+    private bool _exhausted;
 
     public SqlServerRowReader(SqlCommand command, SqlDataReader reader, IReadOnlyList<ColumnDefinition> columns, ReadMode[] modes)
     {
@@ -19,7 +20,12 @@ internal sealed class SqlServerRowReader : IRowReader
         _getters = columns.Select((c, i) => GetterFor(c, modes[i])).ToArray();
     }
 
-    public Task<bool> ReadAsync(CancellationToken cancellationToken) => _reader.ReadAsync(cancellationToken);
+    public async Task<bool> ReadAsync(CancellationToken cancellationToken)
+    {
+        var more = await _reader.ReadAsync(cancellationToken);
+        _exhausted = !more;
+        return more;
+    }
 
     public void GetValues(object?[] values)
     {
@@ -32,8 +38,32 @@ internal sealed class SqlServerRowReader : IRowReader
 
     public async ValueTask DisposeAsync()
     {
-        // Closing the reader closes its connection (CommandBehavior.CloseConnection).
-        await _reader.DisposeAsync();
+        // Closing a reader that has rows left reads and discards all of them, which for a large
+        // table stopped part-way takes as long as copying it. Cancelling the query first ends it.
+        var cancelled = false;
+        if (!_exhausted)
+        {
+            try
+            {
+                _command.Cancel();
+                cancelled = true;
+            }
+            catch (SqlException)
+            {
+                // The connection is already broken; closing it below is all that is left to do.
+            }
+        }
+
+        try
+        {
+            // Closing the reader closes its connection (CommandBehavior.CloseConnection).
+            await _reader.DisposeAsync();
+        }
+        catch (SqlException) when (cancelled)
+        {
+            // "Operation cancelled by user": the cancel above, not a failure of the copy.
+        }
+
         await _command.DisposeAsync();
     }
 

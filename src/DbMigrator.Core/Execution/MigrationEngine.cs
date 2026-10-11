@@ -185,9 +185,10 @@ public static class MigrationEngine
         long rows = 0;
         try
         {
+            // The writer opens first: if it fails, the source query has not started yet.
+            await using var writer = await target.OpenBulkWriterAsync(table, cancellationToken);
             await using var reader = await source.OpenTableReaderAsync(
                 table.Source, table.Columns.Select(c => c.Source).ToList(), cancellationToken);
-            await using var writer = await target.OpenBulkWriterAsync(table, cancellationToken);
             var values = new object?[table.Columns.Count];
             var lastReport = TimeSpan.Zero;
             while (await reader.ReadAsync(cancellationToken))
