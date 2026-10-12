@@ -1,5 +1,8 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Headless;
+using Avalonia.Input;
+using Avalonia.VisualTree;
 using DbMigrator.Desktop.Testing;
 using DbMigrator.Desktop.ViewModels;
 
@@ -64,6 +67,18 @@ public sealed class LayoutTests(AvaloniaFixture fixture)
         var body = ui.Find<ScrollViewer>("DialogBody");
         Assert.True(body.Extent.Height > body.Viewport.Height, "The bullets do not scroll.");
         ui.Screenshot($"31-long-question-{width}x{height}");
+
+        // Read in order (title, text, answers), and the keyboard can scroll the text: Shift+Tab from the answer, then Page Down.
+        var dialog = ui.Find<ContentControl>("DialogContent");
+        var order = dialog.GetVisualDescendants().OfType<Control>().Select(c => c.Name).Where(n => n is "DialogTitle" or "DialogBody" or "DialogCancel").ToList();
+        Assert.Equal(["DialogTitle", "DialogBody", "DialogCancel"], order);
+        Assert.True(ui.Find<Button>("DialogCancel").IsFocused);
+        ui.Window.KeyPress(Key.Tab, RawInputModifiers.Shift, PhysicalKey.Tab, null);
+        ui.Window.KeyRelease(Key.Tab, RawInputModifiers.Shift, PhysicalKey.Tab, null);
+        UiDriver.Settle();
+        Assert.True(body.IsFocused, "Shift+Tab does not reach the text.");
+        ui.Press(Key.PageDown);
+        Assert.True(body.Offset.Y > 0, "Page Down does not scroll the text.");
 
         ui.Click(ui.Find<Button>("DialogConfirm"));
         Assert.True(await answer);

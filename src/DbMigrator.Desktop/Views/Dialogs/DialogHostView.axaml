@@ -9,15 +9,10 @@
       <ContentControl.DataTemplates>
         <DataTemplate DataType="vm:ConfirmDialogViewModel">
           <Border Classes="dialog">
-            <DockPanel>
-              <TextBlock DockPanel.Dock="Top" Name="DialogTitle" Classes="h2" Text="{Binding Title}" TextWrapping="Wrap" Margin="0,0,0,12" />
-              <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,20,0,0">
-                <!-- The safe answer is the default for Enter and Esc. -->
-                <Button Name="DialogCancel" Content="{Binding CancelText}" Command="{Binding CancelCommand}" IsDefault="True" IsCancel="True" />
-                <Button Name="DialogConfirm" Content="{Binding ConfirmText}" Command="{Binding ConfirmCommand}"
-                        Classes.danger="{Binding IsDestructive}" Classes.accent="{Binding !IsDestructive}" />
-              </StackPanel>
-              <ScrollViewer Name="DialogBody" HorizontalScrollBarVisibility="Disabled">
+            <!-- In reading order: title, text, answers. The text takes focus (Shift+Tab) so Page Up/Down scroll it. -->
+            <Grid RowDefinitions="Auto,*,Auto">
+              <TextBlock Name="DialogTitle" Classes="h2" Text="{Binding Title}" TextWrapping="Wrap" Margin="0,0,0,12" />
+              <ScrollViewer Grid.Row="1" Name="DialogBody" HorizontalScrollBarVisibility="Disabled" Focusable="True">
                 <!-- Clear of the scroll bar, which is drawn over the content. -->
                 <StackPanel Spacing="12" Margin="0,0,14,0">
                   <TextBlock Name="DialogMessage" Text="{Binding Message}" TextWrapping="Wrap" />
@@ -33,7 +28,13 @@
                   </ItemsControl>
                 </StackPanel>
               </ScrollViewer>
-            </DockPanel>
+              <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,20,0,0">
+                <!-- The safe answer is the default for Enter and Esc. -->
+                <Button Name="DialogCancel" Content="{Binding CancelText}" Command="{Binding CancelCommand}" IsDefault="True" IsCancel="True" />
+                <Button Name="DialogConfirm" Content="{Binding ConfirmText}" Command="{Binding ConfirmCommand}"
+                        Classes.danger="{Binding IsDestructive}" Classes.accent="{Binding !IsDestructive}" />
+              </StackPanel>
+            </Grid>
           </Border>
         </DataTemplate>
         <DataTemplate DataType="vm:PromptDialogViewModel">
@@ -51,11 +52,9 @@
         </DataTemplate>
         <DataTemplate DataType="vm:ErrorDialogViewModel">
           <Border Classes="dialog">
-            <DockPanel>
-              <TextBlock DockPanel.Dock="Top" Name="DialogTitle" Classes="h2" Text="{Binding Title}" TextWrapping="Wrap" Margin="0,0,0,12" />
-              <Button DockPanel.Dock="Bottom" Name="DialogClose" Content="Close" HorizontalAlignment="Right" Margin="0,12,0,0"
-                      Command="{Binding CloseCommand}" IsDefault="True" IsCancel="True" />
-              <ScrollViewer Name="DialogBody" HorizontalScrollBarVisibility="Disabled">
+            <Grid RowDefinitions="Auto,*,Auto">
+              <TextBlock Name="DialogTitle" Classes="h2" Text="{Binding Title}" TextWrapping="Wrap" Margin="0,0,0,12" />
+              <ScrollViewer Grid.Row="1" Name="DialogBody" HorizontalScrollBarVisibility="Disabled" Focusable="True">
                 <!-- Clear of the scroll bar, which is drawn over the content. -->
                 <StackPanel Spacing="12" Margin="0,0,14,0">
                   <SelectableTextBlock Text="{Binding Message}" TextWrapping="Wrap" />
@@ -64,7 +63,9 @@
                   </Expander>
                 </StackPanel>
               </ScrollViewer>
-            </DockPanel>
+              <Button Grid.Row="2" Name="DialogClose" Content="Close" HorizontalAlignment="Right" Margin="0,12,0,0"
+                      Command="{Binding CloseCommand}" IsDefault="True" IsCancel="True" />
+            </Grid>
           </Border>
         </DataTemplate>
       </ContentControl.DataTemplates>

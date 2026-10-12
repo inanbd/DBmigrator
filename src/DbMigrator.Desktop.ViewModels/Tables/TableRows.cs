@@ -63,6 +63,9 @@ public sealed partial class TableSelectionRowViewModel : ObservableObject
 
     public string KeysText { get; }
 
+    /// <summary>"PK, 12 FK" as values to sort by: a primary key first, then the number of foreign keys.</summary>
+    public (bool HasPrimaryKey, int ForeignKeys) SortKeys => (Definition.PrimaryKey is not null, Definition.ForeignKeys.Count);
+
     public string Notes { get; }
 
     public string SelectionLabel => $"Include {Definition.Name}";

@@ -521,12 +521,7 @@ public abstract partial class ConnectionStepViewModel : WizardStepViewModel
     {
         if (editor.Validate())
         {
-            if (Error is not null && Error == _formProblems)
-            {
-                ClearError();
-            }
-
-            _formProblems = null;
+            DropFormProblems();
             return true;
         }
 
@@ -537,6 +532,20 @@ public abstract partial class ConnectionStepViewModel : WizardStepViewModel
         _formProblems = problems.Count == 0 ? "Check the connection settings." : "Check the connection settings: " + string.Join(" ", problems);
         Error = _formProblems;
         return false;
+    }
+
+    /// <summary>
+    /// Takes the form's problems off the status card once the form changes (an edit, a loaded profile,
+    /// another engine), as each field's own problem goes when it is edited. Other errors stay.
+    /// </summary>
+    private void DropFormProblems()
+    {
+        if (_formProblems is not null && Error == _formProblems)
+        {
+            ClearError();
+        }
+
+        _formProblems = null;
     }
 
     private bool IsStillConnected => _connectedFingerprint is not null && Editor?.Fingerprint == _connectedFingerprint;
@@ -671,6 +680,11 @@ public abstract partial class ConnectionStepViewModel : WizardStepViewModel
         {
             OnEditorFingerprintChanged();
         }
+        else if (e.PropertyName == nameof(ConnectionEditorViewModel.RawText))
+        {
+            // The connection string is read into the form only when used, so its edits move no fingerprint.
+            DropFormProblems();
+        }
         else if (e.PropertyName == nameof(ConnectionEditorViewModel.HasVisibleSecret))
         {
             OnPropertyChanged(nameof(CanRememberPassword));
@@ -681,6 +695,7 @@ public abstract partial class ConnectionStepViewModel : WizardStepViewModel
     private void OnEditorFingerprintChanged()
     {
         StatusTestPassed = null;
+        DropFormProblems();
         if (_connectedFingerprint is not null)
         {
             Status = Editor?.Fingerprint == _connectedFingerprint ? ConnectionStatus.Connected : ConnectionStatus.Changed;

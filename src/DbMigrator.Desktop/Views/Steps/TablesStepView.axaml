@@ -47,7 +47,7 @@
           <DataGridTextColumn Header="Table" Binding="{Binding FullName, Mode=OneWay}" x:DataType="vm:TableSelectionRowViewModel" Width="2*" MinWidth="140" />
           <DataGridTextColumn Header="Rows (est.)" Binding="{Binding RowsText, Mode=OneWay}" SortMemberPath="SortRows" x:DataType="vm:TableSelectionRowViewModel" />
           <DataGridTextColumn Header="Columns" Binding="{Binding ColumnCount, Mode=OneWay}" x:DataType="vm:TableSelectionRowViewModel" />
-          <DataGridTextColumn Header="Keys" Binding="{Binding KeysText, Mode=OneWay}" x:DataType="vm:TableSelectionRowViewModel" />
+          <DataGridTextColumn Header="Keys" Binding="{Binding KeysText, Mode=OneWay}" SortMemberPath="SortKeys" x:DataType="vm:TableSelectionRowViewModel" />
           <DataGridTemplateColumn Header="In target" x:DataType="vm:TableSelectionRowViewModel" SortMemberPath="ExistsInTarget">
             <DataGridTemplateColumn.CellTemplate>
               <DataTemplate x:DataType="vm:TableSelectionRowViewModel">

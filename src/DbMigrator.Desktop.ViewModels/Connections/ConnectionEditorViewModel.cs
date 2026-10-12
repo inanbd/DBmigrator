@@ -134,9 +134,24 @@ public sealed partial class ConnectionEditorViewModel : ObservableObject
 
     private bool ValidateFields()
     {
-        if (IsRawMode && !ApplyRawText())
+        if (IsRawMode)
         {
-            return false;
+            if (!ApplyRawText())
+            {
+                // The fields still hold the last text that parsed, so their problems are not about this text.
+                // A password box is on screen with what it holds, so its problem stands.
+                foreach (var field in AllFields.Where(f => f is not SecretFieldViewModel))
+                {
+                    field.Error = null;
+                }
+
+                return false;
+            }
+        }
+        else
+        {
+            // In the form only the additional settings and the build set this, and both run again.
+            RawError = null;
         }
 
         if (!MoveFieldsOutOfAdditionalSettings())
@@ -230,7 +245,16 @@ public sealed partial class ConnectionEditorViewModel : ObservableObject
         Refresh();
     }
 
-    partial void OnAdditionalSettingsChanged(string value) => Refresh();
+    partial void OnAdditionalSettingsChanged(string value)
+    {
+        // Like a field's error, a problem with the additional settings goes once they are edited.
+        if (!_updating && !IsRawMode)
+        {
+            RawError = null;
+        }
+
+        Refresh();
+    }
 
     /// <summary>Like a field's error, a problem said under the text goes once the text is edited.</summary>
     partial void OnRawTextChanged(string value) => HiddenFieldErrors = null;

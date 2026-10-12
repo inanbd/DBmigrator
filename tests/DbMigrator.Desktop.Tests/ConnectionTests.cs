@@ -146,6 +146,44 @@ public sealed class ConnectionEditorTests
     }
 
     [Fact]
+    public void Text_that_does_not_parse_is_not_blamed_for_the_last_text_problems()
+    {
+        var editor = SqlServerEditor();
+        editor.IsRawMode = true;
+        editor.RawText = "Data Source=sql01;User ID=sa";
+        Assert.False(editor.Validate());
+        Assert.Equal("Database is required.", editor.HiddenFieldErrors);
+
+        // Now it names the database, but the last pair has no '='.
+        editor.RawText = "Data Source=sql01;Initial Catalog=shop;User ID";
+        Assert.False(editor.Validate());
+
+        Assert.Null(editor.HiddenFieldErrors);
+        Assert.Equal([Assert.IsType<string>(editor.RawError)], editor.Problems());
+    }
+
+    [Fact]
+    public void Fixed_additional_settings_leave_no_old_problem_behind()
+    {
+        var editor = SqlServerEditor();
+        WizardDriver.Fill(editor, "sql01", "shop");
+        editor.AdditionalSettings = "Packet Size";
+        Assert.False(editor.Validate());
+        Assert.NotNull(editor.RawError);
+
+        // Editing them takes the problem away at once; a later, unrelated problem does not bring it back.
+        editor.AdditionalSettings = "Packet Size=4096";
+        Assert.Null(editor.RawError);
+        Assert.True(editor.Validate());
+        WizardDriver.Field(editor, "Initial Catalog").Value = "";
+        editor.IsAdvancedExpanded = false;
+
+        Assert.False(editor.Validate());
+        Assert.Equal(["Database is required."], editor.Problems());
+        Assert.False(editor.IsAdvancedExpanded);
+    }
+
+    [Fact]
     public void A_problem_inside_advanced_opens_it()
     {
         var editor = new ConnectionEditorViewModel(new PostgreSqlProvider().Connection, new FakeFileService());
@@ -335,11 +373,49 @@ public sealed class ConnectionStepTests
         Assert.Equal(ConnectionStatus.Idle, source.Status);
         Assert.Equal(0, test.Provider.CheckCount);
 
-        // Saving a valid form takes the message away.
+        // Editing the text takes the message away, as it does the field's own.
         source.Editor.RawText = "Data Source=src01;Initial Catalog=shop;User ID=migrator";
+        Assert.Null(source.Error);
+
         test.Dialogs.Prompt("src01");
         await source.SaveProfileCommand.ExecuteAsync(null);
         Assert.Null(source.Error);
+    });
+
+    [Fact]
+    public Task The_form_problems_go_when_a_profile_is_loaded_or_the_engine_changes() => UiThreadContext.RunAsync(async () =>
+    {
+        var test = TestServices.Create(null, new SqlServerProvider());
+        var wizard = new WizardDriver(test);
+        await wizard.StartAsync();
+        var source = wizard.Shell.Source;
+        WizardDriver.Fill(source.Editor!, "src01", "shop");
+        test.Dialogs.Prompt("src01");
+        await source.SaveProfileCommand.ExecuteAsync(null);
+        var saved = source.SelectedProfile!;
+
+        source.SelectedProfile = null;
+        source.Editor!.Load(new Dictionary<string, string>(), "", new Dictionary<string, string>());
+        await source.ConnectCommand.ExecuteAsync(null);
+        Assert.StartsWith("Check the connection settings:", source.Error, StringComparison.Ordinal);
+
+        source.SelectedProfile = saved;
+        await Wait.UntilAsync(() => source.Editor!.Description.Contains("src01", StringComparison.Ordinal), "the profile to load");
+        Assert.Null(source.Error);
+
+        source.Editor!.Load(new Dictionary<string, string>(), "", new Dictionary<string, string>());
+        await source.ConnectCommand.ExecuteAsync(null);
+        Assert.NotNull(source.Error);
+        source.SelectedProvider = source.Providers.First(p => p != source.SelectedProvider);
+        Assert.Null(source.Error);
+
+        // Any other error is left alone by an edit.
+        source.SelectedProvider = source.Providers.First(p => p.Provider == test.Provider);
+        WizardDriver.Fill(source.Editor!, "src01", "shop");
+        test.Provider.CheckError = () => new TimeoutException("Connection timed out after 15 seconds.");
+        await source.ConnectCommand.ExecuteAsync(null);
+        WizardDriver.Field(source.Editor!, "Data Source").Value = "src02";
+        Assert.Contains("timed out", source.Error, StringComparison.Ordinal);
     });
 
     [Fact]
