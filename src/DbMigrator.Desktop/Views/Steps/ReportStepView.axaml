@@ -93,11 +93,11 @@
                 <DataGridTextColumn Header="Source" Binding="{Binding Source, Mode=OneWay}" x:DataType="vm:ReportTableRowViewModel" Width="*" MinWidth="140" />
                 <DataGridTextColumn Header="Target" Binding="{Binding Target, Mode=OneWay}" x:DataType="vm:ReportTableRowViewModel" Width="*" MinWidth="140" />
                 <DataGridTextColumn Header="Action" Binding="{Binding Action, Mode=OneWay}" x:DataType="vm:ReportTableRowViewModel" />
-                <DataGridTextColumn Header="Rows copied" Binding="{Binding RowsCopied, Mode=OneWay}" x:DataType="vm:ReportTableRowViewModel" />
-                <DataGridTextColumn Header="Source count" Binding="{Binding SourceCount, Mode=OneWay}" x:DataType="vm:ReportTableRowViewModel" />
-                <DataGridTextColumn Header="Target count" Binding="{Binding TargetCount, Mode=OneWay}" x:DataType="vm:ReportTableRowViewModel" />
-                <DataGridTextColumn Header="Elapsed" Binding="{Binding Elapsed, Mode=OneWay}" x:DataType="vm:ReportTableRowViewModel" />
-                <DataGridTextColumn Header="Rate" Binding="{Binding Rate, Mode=OneWay}" x:DataType="vm:ReportTableRowViewModel" />
+                <DataGridTextColumn Header="Rows copied" Binding="{Binding RowsCopied, Mode=OneWay}" SortMemberPath="SortRowsCopied" x:DataType="vm:ReportTableRowViewModel" />
+                <DataGridTextColumn Header="Source count" Binding="{Binding SourceCount, Mode=OneWay}" SortMemberPath="SortSourceCount" x:DataType="vm:ReportTableRowViewModel" />
+                <DataGridTextColumn Header="Target count" Binding="{Binding TargetCount, Mode=OneWay}" SortMemberPath="SortTargetCount" x:DataType="vm:ReportTableRowViewModel" />
+                <DataGridTextColumn Header="Elapsed" Binding="{Binding Elapsed, Mode=OneWay}" SortMemberPath="SortElapsed" x:DataType="vm:ReportTableRowViewModel" />
+                <DataGridTextColumn Header="Rate" Binding="{Binding Rate, Mode=OneWay}" SortMemberPath="SortRate" x:DataType="vm:ReportTableRowViewModel" />
                 <DataGridTextColumn Header="Message" Binding="{Binding Message, Mode=OneWay}" x:DataType="vm:ReportTableRowViewModel" Width="2*" MinWidth="140" />
               </DataGrid.Columns>
             </DataGrid>

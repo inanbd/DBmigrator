@@ -32,7 +32,15 @@ public sealed partial class ConflictRowViewModel(TablePlan table, Action<Conflic
 
     public QualifiedName Target => Table.Target;
 
+    // A grid sorts only by comparable values, and a QualifiedName is not one: these sort the name columns.
+    public string SortSource => Source.ToString();
+
+    public string SortTarget => Target.ToString();
+
     public string RowsText => Table.Source.EstimatedRowCount is { } rows ? "~" + Humanize.Count(rows) : "";
+
+    /// <summary>The estimate as a number, to sort by; unknown sorts first.</summary>
+    public long SortRows => Table.Source.EstimatedRowCount ?? -1;
 
     public IReadOnlyList<ConflictChoice> Options { get; } = ConflictChoice.All;
 
@@ -59,6 +67,7 @@ public sealed partial class ConflictRowViewModel(TablePlan table, Action<Conflic
     {
         Table = table;
         OnPropertyChanged(nameof(Target));
+        OnPropertyChanged(nameof(SortTarget));
         OnPropertyChanged(nameof(Explanation));
     }
 
@@ -72,13 +81,24 @@ public sealed record PlanTableRowViewModel(int Index, TablePlan Plan, int Errors
 
     public QualifiedName Target => Plan.Target;
 
+    // A grid sorts only by comparable values, and a QualifiedName is not one: these sort the name columns.
+    public string SortSource => Source.ToString();
+
+    public string SortTarget => Target.ToString();
+
     public string ActionText => Plan.IsUnresolvedConflict ? "exists: choose" : Core.Execution.ReportWriter.DescribeAction(Plan.Action);
 
     public string RowsText => Plan.Source.EstimatedRowCount is { } rows ? "~" + Humanize.Count(rows) : "";
 
+    /// <summary>The estimate as a number, to sort by; unknown sorts first.</summary>
+    public long SortRows => Plan.Source.EstimatedRowCount ?? -1;
+
     public int ColumnCount => Plan.Columns.Count;
 
     public string IssuesText => Errors + Warnings + Notes == 0 ? "" : $"{Errors} E · {Warnings} W · {Notes} N";
+
+    /// <summary>Errors first, then warnings, then notes, to sort by.</summary>
+    public (int Errors, int Warnings, int Notes) SortIssues => (Errors, Warnings, Notes);
 }
 
 /// <summary>One column's journey from source to target.</summary>
@@ -103,8 +123,16 @@ public sealed class TableDetailViewModel
     public TableDetailViewModel(TablePlan table, ISqlDialect dialect, IReadOnlyList<MigrationIssue> issues)
     {
         Table = table;
-        var byColumn = issues.Where(i => i.Subject.StartsWith(table.Source.Name + ".", StringComparison.Ordinal))
-            .GroupBy(i => i.Subject[(table.Source.Name.ToString().Length + 1)..], StringComparer.Ordinal)
+        var tableName = table.Source.Name.ToString();
+        var columnNames = table.Columns.Select(c => c.Source.Name).ToHashSet(StringComparer.Ordinal);
+
+        // "dbo.Orders.Total" is about a column; "dbo.Orders" and "dbo.Orders.IX_Total" (an index, key or check) are about the table.
+        string? ColumnOf(MigrationIssue issue) =>
+            issue.Subject.Length > tableName.Length + 1 && issue.Subject.StartsWith(tableName + ".", StringComparison.Ordinal)
+            && columnNames.Contains(issue.Subject[(tableName.Length + 1)..]) ? issue.Subject[(tableName.Length + 1)..] : null;
+
+        var byColumn = issues.Where(i => ColumnOf(i) is not null)
+            .GroupBy(i => ColumnOf(i)!, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => string.Join(" ", g.Select(i => i.Message)), StringComparer.Ordinal);
         Columns = table.Columns.Select(c => new ColumnMappingRowViewModel(
             c.Source.Name,
@@ -121,7 +149,7 @@ public sealed class TableDetailViewModel
         ForeignKeys = table.ForeignKeys.Select(f => $"{f.Name}: ({string.Join(", ", f.Columns)}) → {f.ReferencedTable} ({string.Join(", ", f.ReferencedColumns)})"
             + (f.OnDelete != ReferentialAction.NoAction ? $", on delete {f.OnDelete}" : "")
             + (f.IsTrusted ? "" : ", not validated")).ToList();
-        TableIssues = issues.Where(i => i.Subject == table.Source.Name.ToString() || (i.Subject.StartsWith(table.Source.Name + ".", StringComparison.Ordinal) && !byColumn.ContainsKey(i.Subject[(table.Source.Name.ToString().Length + 1)..])))
+        TableIssues = issues.Where(i => ColumnOf(i) is null && (i.Subject == tableName || i.Subject.StartsWith(tableName + ".", StringComparison.Ordinal)))
             .Select(i => new IssueRowViewModel(i)).ToList();
         ExistingNote = table.TargetExists && !table.CreatesTable
             ? "Existing table: its columns are not changed; rows load assuming this shape."
@@ -141,7 +169,10 @@ public sealed class TableDetailViewModel
 
     public IReadOnlyList<string> ForeignKeys { get; }
 
+    /// <summary>Issues about the table, its keys and indexes: everything not shown against a column.</summary>
     public IReadOnlyList<IssueRowViewModel> TableIssues { get; }
+
+    public bool HasTableIssues => TableIssues.Count > 0;
 
     public string? ExistingNote { get; }
 

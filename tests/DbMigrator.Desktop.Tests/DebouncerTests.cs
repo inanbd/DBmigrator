@@ -36,10 +36,11 @@ public sealed class DebouncerTests
         var debouncer = new Debouncer(time, TimeSpan.FromMilliseconds(200));
         var runs = 0;
         var calls = Enumerable.Range(0, 5).Select(i => debouncer.RunAsync(_ => Task.FromResult(Interlocked.Increment(ref runs)), _ => { })).ToList();
-        await Task.Delay(20);
+
+        // No settling time: each call has started its wait before it returns, so the clock can move at once.
         time.Advance(TimeSpan.FromMilliseconds(200));
 
-        var results = await Task.WhenAll(calls);
+        var results = await Task.WhenAll(calls).WaitAsync(TimeSpan.FromSeconds(10));
 
         Assert.Equal([false, false, false, false, true], results);
         Assert.Equal(1, runs);

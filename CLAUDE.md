@@ -48,6 +48,11 @@ If Docker is installed but not running in a cloud session, `service docker start
   - `x:DataType` on every DataGrid column; no generic types in `x:DataType`; show nullable sub-objects
     through a `ContentControl` with a typed `DataTemplate`.
   - Bound text inside a `RadioButton`/`CheckBox` goes in a `TextBlock`, or `_` becomes an access key.
+  - A DataGrid column sorts by its binding's value: formatted numbers need a numeric `SortMemberPath`
+    (`SortRows`, `SortRate`, ...), and a column bound to a non-comparable value such as `QualifiedName`
+    silently cannot be sorted without a string one. `GridSortTests` clicks every header.
+  - An `ItemsSource` that returns a new list on each change rebuilds its controls and drops focus; bind a
+    fixed list and hide items with `IsVisible`.
   - CA1822 fires on commands and on properties returning statics.
   - `Bitmap.Save(string, BitmapEncoderOptions)`; the `int?` overload is obsolete.
   - `ShutdownRequestedEventArgs.IsOSShutdown` is internal; use `WindowClosingEventArgs.CloseReason`.

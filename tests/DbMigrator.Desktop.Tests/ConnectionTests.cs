@@ -106,6 +106,77 @@ public sealed class ConnectionEditorTests
         Assert.NotEqual(before, withPassword);
         Assert.NotEqual(withPassword, editor.Fingerprint);
     }
+
+    [Fact]
+    public void The_password_boxes_under_the_connection_string_are_never_rebuilt()
+    {
+        var editor = SqlServerEditor();
+        editor.IsRawMode = true;
+        var secrets = editor.Secrets;
+        var raised = new List<string?>();
+        editor.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        WizardDriver.Field(editor, "Password").Value = "h";
+        WizardDriver.Field(editor, "Password").Value = "hu";
+        ((ToggleFieldViewModel)WizardDriver.Field(editor, "Integrated Security")).IsChecked = true;
+
+        Assert.Same(secrets, editor.Secrets);
+        Assert.DoesNotContain(nameof(ConnectionEditorViewModel.Secrets), raised);
+        Assert.False(Assert.Single(editor.Secrets).IsVisible);
+    }
+
+    [Fact]
+    public void A_problem_with_a_field_hidden_by_the_connection_string_is_said_under_the_text()
+    {
+        var editor = SqlServerEditor();
+        editor.IsRawMode = true;
+        editor.RawText = "Data Source=sql01;User ID=sa";
+
+        Assert.False(editor.Validate());
+
+        Assert.Equal("Database is required.", editor.HiddenFieldErrors);
+        Assert.Contains("Database is required.", editor.Problems());
+
+        // Editing the text takes the stale message away, as typing in a field clears its error.
+        editor.RawText = "Data Source=sql01;Initial Catalog=shop;User ID=sa";
+        Assert.Null(editor.HiddenFieldErrors);
+        Assert.True(editor.Validate());
+        Assert.Null(editor.HiddenFieldErrors);
+        Assert.Empty(editor.Problems());
+    }
+
+    [Fact]
+    public void A_problem_inside_advanced_opens_it()
+    {
+        var editor = new ConnectionEditorViewModel(new PostgreSqlProvider().Connection, new FakeFileService());
+        WizardDriver.Field(editor, "Host").Value = "pg01";
+        WizardDriver.Field(editor, "Database").Value = "shop";
+        WizardDriver.Field(editor, "Username").Value = "migrator";
+        var timeout = WizardDriver.Field(editor, "Timeout");
+        Assert.True(timeout.Field.IsAdvanced);
+        timeout.Value = "5000";
+        Assert.False(editor.IsAdvancedExpanded);
+
+        Assert.False(editor.Validate());
+
+        Assert.True(editor.IsAdvancedExpanded);
+        Assert.NotNull(timeout.Error);
+        Assert.Contains(timeout.Error, editor.Problems());
+    }
+
+    [Fact]
+    public void Unparseable_additional_settings_open_advanced()
+    {
+        var editor = SqlServerEditor();
+        WizardDriver.Fill(editor, "sql01", "shop");
+        editor.AdditionalSettings = "Packet Size";
+
+        Assert.False(editor.Validate());
+
+        Assert.True(editor.IsAdvancedExpanded);
+        Assert.NotNull(editor.RawError);
+        Assert.Contains(editor.RawError, editor.Problems());
+    }
 }
 
 public sealed class ProfileTests
@@ -246,6 +317,29 @@ public sealed class ConnectionStepTests
         Assert.Contains("timed out", wizard.Shell.Source.Error, StringComparison.Ordinal);
         Assert.NotEmpty(wizard.Shell.Source.Hints);
         Assert.False(wizard.Shell.Source.CanAdvance);
+    });
+
+    [Fact]
+    public Task An_invalid_form_says_why_on_the_status_card() => UiThreadContext.RunAsync(async () =>
+    {
+        var test = TestServices.Create();
+        var wizard = new WizardDriver(test);
+        await wizard.StartAsync();
+        var source = wizard.Shell.Source;
+        source.Editor!.IsRawMode = true;
+        source.Editor.RawText = "Data Source=src01;User ID=migrator";
+
+        await source.ConnectCommand.ExecuteAsync(null);
+
+        Assert.Equal("Check the connection settings: Database is required.", source.Error);
+        Assert.Equal(ConnectionStatus.Idle, source.Status);
+        Assert.Equal(0, test.Provider.CheckCount);
+
+        // Saving a valid form takes the message away.
+        source.Editor.RawText = "Data Source=src01;Initial Catalog=shop;User ID=migrator";
+        test.Dialogs.Prompt("src01");
+        await source.SaveProfileCommand.ExecuteAsync(null);
+        Assert.Null(source.Error);
     });
 
     [Fact]

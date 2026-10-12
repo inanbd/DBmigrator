@@ -1,7 +1,9 @@
+using DbMigrator.Core.Diagnostics;
 using DbMigrator.Core.Planning;
 using DbMigrator.Core.Schema;
 using DbMigrator.Desktop.Testing;
 using DbMigrator.Desktop.ViewModels;
+using DbMigrator.Providers.PostgreSql;
 using static DbMigrator.TestSupport.SchemaBuilder;
 
 namespace DbMigrator.Desktop.Tests;
@@ -90,6 +92,28 @@ public sealed class ReviewStepTests
         Assert.Equal(review.Prepared!.Plan.Issues.Count, review.Issues.Groups.Sum(g => g.Count));
         Assert.NotNull(review.Detail);
     });
+
+    [Fact]
+    public void Table_detail_lists_index_and_key_issues_apart_from_column_issues()
+    {
+        var prepared = Plans.Prepare();
+        MigrationIssue[] issues =
+        [
+            new(IssueSeverity.Warning, IssueCodes.DefaultNotTranslated, "dbo.A.Name", "Default not translated."),
+            new(IssueSeverity.Warning, IssueCodes.FilteredIndex, "dbo.A.IX_A_Name", "Filtered index."),
+            new(IssueSeverity.Warning, IssueCodes.CheckConstraint, "dbo.A.CK_A_Name", "Check constraint."),
+            new(IssueSeverity.Error, IssueCodes.NameCollision, "dbo.A", "Name collision."),
+            new(IssueSeverity.Warning, IssueCodes.FilteredIndex, "dbo.AB.IX_AB", "Another table's index."),
+            new(IssueSeverity.Warning, IssueCodes.DefaultNotTranslated, "dbo.B.Name", "Another table's column."),
+        ];
+
+        var detail = new TableDetailViewModel(prepared.Table(TestServices.A), new PostgreSqlDialect(new Version(17, 0)), issues);
+
+        Assert.Equal("Default not translated.", detail.Columns.Single(c => c.SourceColumn == "Name").IssueText);
+        Assert.Equal("", detail.Columns.Single(c => c.SourceColumn == "Id").IssueText);
+        Assert.Equal(["Filtered index.", "Check constraint.", "Name collision."], detail.TableIssues.Select(i => i.Message));
+        Assert.True(detail.HasTableIssues);
+    }
 
     /// <summary>Lets the debounced re-plan run: past its quiet period, then until it is applied.</summary>
     internal static async Task ReplannedAsync(TestServices test, ReviewStepViewModel review)

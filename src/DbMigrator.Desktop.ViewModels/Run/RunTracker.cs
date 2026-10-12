@@ -76,6 +76,9 @@ public sealed partial class TableProgressRowViewModel : ObservableObject
 
     public string RateText => Elapsed.TotalSeconds >= 1 ? $"{Humanize.Rate(RowsCopied / Elapsed.TotalSeconds)}/s" : "";
 
+    /// <summary>The rate as a number, to sort by.</summary>
+    public double SortRate => Elapsed.TotalSeconds >= 1 ? RowsCopied / Elapsed.TotalSeconds : -1;
+
     public string ElapsedText => Elapsed > TimeSpan.Zero ? Humanize.Duration(Elapsed) : "";
 
     /// <summary>Advances the elapsed clock of a table being copied between engine events.</summary>

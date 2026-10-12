@@ -48,9 +48,9 @@
                      Text="No selected table exists in the target yet: every table will be created." />
           <DataGrid Name="ConflictsGrid" ItemsSource="{Binding Conflicts}" AutoGenerateColumns="False" IsReadOnly="True">
             <DataGrid.Columns>
-              <DataGridTextColumn Header="Source table" Binding="{Binding Source, Mode=OneWay}" x:DataType="vm:ConflictRowViewModel" />
-              <DataGridTextColumn Header="Target table" Binding="{Binding Target, Mode=OneWay}" x:DataType="vm:ConflictRowViewModel" />
-              <DataGridTextColumn Header="Rows (est.)" Binding="{Binding RowsText, Mode=OneWay}" x:DataType="vm:ConflictRowViewModel" />
+              <DataGridTextColumn Header="Source table" Binding="{Binding Source, Mode=OneWay}" SortMemberPath="SortSource" x:DataType="vm:ConflictRowViewModel" />
+              <DataGridTextColumn Header="Target table" Binding="{Binding Target, Mode=OneWay}" SortMemberPath="SortTarget" x:DataType="vm:ConflictRowViewModel" />
+              <DataGridTextColumn Header="Rows (est.)" Binding="{Binding RowsText, Mode=OneWay}" SortMemberPath="SortRows" x:DataType="vm:ConflictRowViewModel" />
               <DataGridTemplateColumn Header="Your choice" Width="200" x:DataType="vm:ConflictRowViewModel">
                 <DataGridTemplateColumn.CellTemplate>
                   <DataTemplate x:DataType="vm:ConflictRowViewModel">
@@ -78,12 +78,12 @@
                     AutoGenerateColumns="False" IsReadOnly="True" CanUserSortColumns="True">
             <DataGrid.Columns>
               <DataGridTextColumn Header="#" Binding="{Binding Index, Mode=OneWay}" x:DataType="vm:PlanTableRowViewModel" />
-              <DataGridTextColumn Header="Source" Binding="{Binding Source, Mode=OneWay}" x:DataType="vm:PlanTableRowViewModel" Width="*" MinWidth="140" />
-              <DataGridTextColumn Header="Target" Binding="{Binding Target, Mode=OneWay}" x:DataType="vm:PlanTableRowViewModel" Width="*" MinWidth="140" />
+              <DataGridTextColumn Header="Source" Binding="{Binding Source, Mode=OneWay}" SortMemberPath="SortSource" x:DataType="vm:PlanTableRowViewModel" Width="*" MinWidth="140" />
+              <DataGridTextColumn Header="Target" Binding="{Binding Target, Mode=OneWay}" SortMemberPath="SortTarget" x:DataType="vm:PlanTableRowViewModel" Width="*" MinWidth="140" />
               <DataGridTextColumn Header="Action" Binding="{Binding ActionText, Mode=OneWay}" x:DataType="vm:PlanTableRowViewModel" />
-              <DataGridTextColumn Header="Rows (est.)" Binding="{Binding RowsText, Mode=OneWay}" x:DataType="vm:PlanTableRowViewModel" />
+              <DataGridTextColumn Header="Rows (est.)" Binding="{Binding RowsText, Mode=OneWay}" SortMemberPath="SortRows" x:DataType="vm:PlanTableRowViewModel" />
               <DataGridTextColumn Header="Columns" Binding="{Binding ColumnCount, Mode=OneWay}" x:DataType="vm:PlanTableRowViewModel" />
-              <DataGridTextColumn Header="Issues" Binding="{Binding IssuesText, Mode=OneWay}" x:DataType="vm:PlanTableRowViewModel" />
+              <DataGridTextColumn Header="Issues" Binding="{Binding IssuesText, Mode=OneWay}" SortMemberPath="SortIssues" x:DataType="vm:PlanTableRowViewModel" />
             </DataGrid.Columns>
           </DataGrid>
           <GridSplitter Grid.Row="1" ResizeDirection="Rows" />
@@ -99,7 +99,7 @@
               <DataGridTextColumn Header="Source type" Binding="{Binding SourcePattern, Mode=OneWay}" x:DataType="vm:TypeMappingRowViewModel" />
               <DataGridTextColumn Header="Target type" Binding="{Binding TargetPattern, Mode=OneWay}" x:DataType="vm:TypeMappingRowViewModel" />
               <DataGridTextColumn Header="Columns" Binding="{Binding ColumnCount, Mode=OneWay}" x:DataType="vm:TypeMappingRowViewModel" />
-              <DataGridTextColumn Header="Worst" Binding="{Binding SeverityText, Mode=OneWay}" x:DataType="vm:TypeMappingRowViewModel" />
+              <DataGridTextColumn Header="Worst" Binding="{Binding SeverityText, Mode=OneWay}" SortMemberPath="WorstSeverity" x:DataType="vm:TypeMappingRowViewModel" />
               <DataGridTextColumn Header="Note" Binding="{Binding Note, Mode=OneWay}" x:DataType="vm:TypeMappingRowViewModel" Width="*" MinWidth="140" />
             </DataGrid.Columns>
           </DataGrid>

@@ -64,6 +64,9 @@ public abstract partial class ConnectionStepViewModel : WizardStepViewModel
     /// <summary>The saved-connections file is from a newer version: it is shown but never written.</summary>
     private bool _profilesReadOnly;
 
+    /// <summary>The status-card message that lists the form's problems, so a valid form can take it away.</summary>
+    private string? _formProblems;
+
     protected ConnectionStepViewModel(ShellServices services, MigrationSession session, ConnectionRole role)
     {
         Services = services;
@@ -298,7 +301,7 @@ public abstract partial class ConnectionStepViewModel : WizardStepViewModel
     [RelayCommand(CanExecute = nameof(CanSaveProfile))]
     private async Task SaveProfileAsync()
     {
-        if (SelectedProvider is not { } provider || Editor is not { } editor || !editor.Validate())
+        if (SelectedProvider is not { } provider || Editor is not { } editor || !Validate(editor))
         {
             return;
         }
@@ -490,7 +493,7 @@ public abstract partial class ConnectionStepViewModel : WizardStepViewModel
     private bool TryResolve(out ResolvedConnection connection)
     {
         connection = null!;
-        if (SelectedProvider is not { } provider || Editor is not { } editor || !editor.Validate())
+        if (SelectedProvider is not { } provider || Editor is not { } editor || !Validate(editor))
         {
             return false;
         }
@@ -508,6 +511,32 @@ public abstract partial class ConnectionStepViewModel : WizardStepViewModel
 
         connection = new ResolvedConnection(provider.Provider, editor.CurrentValues(), editor.AdditionalSettings, connectionString, editor.Description, SelectedProfile?.Profile.Id);
         return true;
+    }
+
+    /// <summary>
+    /// Validates the form. Its problems are also listed on the status card, which is in view wherever
+    /// the fields are, so Test, Connect and Save never fail without saying why.
+    /// </summary>
+    private bool Validate(ConnectionEditorViewModel editor)
+    {
+        if (editor.Validate())
+        {
+            if (Error is not null && Error == _formProblems)
+            {
+                ClearError();
+            }
+
+            _formProblems = null;
+            return true;
+        }
+
+        ClearError();
+        Hints = [];
+        StatusTestPassed = null;
+        var problems = editor.Problems();
+        _formProblems = problems.Count == 0 ? "Check the connection settings." : "Check the connection settings: " + string.Join(" ", problems);
+        Error = _formProblems;
+        return false;
     }
 
     private bool IsStillConnected => _connectedFingerprint is not null && Editor?.Fingerprint == _connectedFingerprint;

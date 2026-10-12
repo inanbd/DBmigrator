@@ -35,6 +35,17 @@ public sealed record ReportTableRowViewModel(int Index, TableResult Result, Tabl
     public string Rate => Result.Elapsed.TotalSeconds >= 1 ? $"{Humanize.Rate(Result.RowsCopied / Result.Elapsed.TotalSeconds)}/s" : "";
 
     public string Message => Result.Error ?? "";
+
+    // Numbers to sort by: the columns above are formatted text, which would sort "999" after "1,234".
+    public long SortRowsCopied => Result.RowsCopied;
+
+    public long SortSourceCount => Result.SourceRowCount ?? -1;
+
+    public long SortTargetCount => Result.TargetRowCount ?? -1;
+
+    public TimeSpan SortElapsed => Result.Elapsed;
+
+    public double SortRate => Result.Elapsed.TotalSeconds >= 1 ? Result.RowsCopied / Result.Elapsed.TotalSeconds : -1;
 }
 
 /// <summary>What happened, what needs attention, and the SQL still to run.</summary>

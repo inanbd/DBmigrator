@@ -19,6 +19,7 @@ public sealed partial class ConnectionEditorViewModel : ObservableObject
         AllFields = format.Fields.Select(f => Create(f, files)).ToList();
         Fields = AllFields.Where(f => !f.Field.IsAdvanced).ToList();
         AdvancedFields = AllFields.Where(f => f.Field.IsAdvanced).ToList();
+        Secrets = AllFields.OfType<SecretFieldViewModel>().ToList();
         foreach (var field in AllFields)
         {
             field.PropertyChanged += (_, e) =>
@@ -44,9 +45,27 @@ public sealed partial class ConnectionEditorViewModel : ObservableObject
     /// <summary>The fields under "Advanced".</summary>
     public IReadOnlyList<ConnectionFieldViewModel> AdvancedFields { get; }
 
-    public IReadOnlyList<SecretFieldViewModel> VisibleSecrets => AllFields.OfType<SecretFieldViewModel>().Where(f => f.IsVisible).ToList();
+    /// <summary>
+    /// The password boxes shown under the connection string. The list never changes, so a box being
+    /// typed in is never rebuilt; each box hides itself while its field does not apply.
+    /// </summary>
+    public IReadOnlyList<SecretFieldViewModel> Secrets { get; }
 
-    public bool HasVisibleSecret => AllFields.OfType<SecretFieldViewModel>().Any(f => f.IsVisible);
+    public bool HasVisibleSecret => Secrets.Any(f => f.IsVisible);
+
+    /// <summary>Whether "Advanced" is open. <see cref="Validate"/> opens it when a problem is inside.</summary>
+    [ObservableProperty]
+    public partial bool IsAdvancedExpanded { get; set; }
+
+    /// <summary>
+    /// In connection-string mode, the problems with fields that have no box on screen there,
+    /// such as a missing database.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasHiddenFieldErrors))]
+    public partial string? HiddenFieldErrors { get; private set; }
+
+    public bool HasHiddenFieldErrors => HiddenFieldErrors is not null;
 
     /// <summary>Keywords that are not fields, as "Key=Value;Key=Value".</summary>
     [ObservableProperty]
@@ -91,8 +110,29 @@ public sealed partial class ConnectionEditorViewModel : ObservableObject
     public IReadOnlyDictionary<string, string> SecretValues() =>
         AllFields.OfType<SecretFieldViewModel>().Where(f => f.IsVisible && f.Value.Length > 0).ToDictionary(f => f.Keyword, f => f.Value);
 
-    /// <summary>Checks required fields and ranges; shows each problem under its field.</summary>
+    /// <summary>
+    /// Checks required fields and ranges; shows each problem under its field, and makes sure it is
+    /// in view (see <see cref="Problems"/> for all of them in one place).
+    /// </summary>
     public bool Validate()
+    {
+        HiddenFieldErrors = null;
+        var valid = ValidateFields();
+        if (!valid)
+        {
+            RevealProblems();
+        }
+
+        return valid;
+    }
+
+    /// <summary>What the last <see cref="Validate"/> or build found wrong, one sentence each.</summary>
+    public IReadOnlyList<string> Problems() =>
+        (RawError is { } raw ? [raw] : Array.Empty<string>())
+            .Concat(AllFields.Where(f => f.IsVisible && f.Error is not null).Select(f => f.Error!))
+            .ToList();
+
+    private bool ValidateFields()
     {
         if (IsRawMode && !ApplyRawText())
         {
@@ -119,6 +159,24 @@ public sealed partial class ConnectionEditorViewModel : ObservableObject
         return errors.Count == 0;
     }
 
+    /// <summary>
+    /// A problem under a field that is out of sight would leave the user wondering why nothing happened:
+    /// in connection-string mode only the password boxes show, so the rest are said under the text;
+    /// in the form, "Advanced" opens when a problem is inside it.
+    /// </summary>
+    private void RevealProblems()
+    {
+        if (IsRawMode)
+        {
+            var hidden = AllFields.Where(f => f.IsVisible && f.Error is not null && f is not SecretFieldViewModel).Select(f => f.Error!).ToList();
+            HiddenFieldErrors = hidden.Count == 0 ? null : string.Join(" ", hidden);
+        }
+        else if (RawError is not null || AdvancedFields.Any(f => f.IsVisible && f.Error is not null))
+        {
+            IsAdvancedExpanded = true;
+        }
+    }
+
     /// <exception cref="ArgumentException">The driver rejected a value; it is also shown under the field.</exception>
     public string BuildConnectionString()
     {
@@ -137,6 +195,8 @@ public sealed partial class ConnectionEditorViewModel : ObservableObject
             {
                 RawError = ex.Message;
             }
+
+            RevealProblems();
 
             throw;
         }
@@ -159,6 +219,7 @@ public sealed partial class ConnectionEditorViewModel : ObservableObject
             AdditionalSettings = additionalSettings;
             IsRawMode = false;
             RawError = null;
+            HiddenFieldErrors = null;
             Notice = null;
         }
         finally
@@ -171,8 +232,12 @@ public sealed partial class ConnectionEditorViewModel : ObservableObject
 
     partial void OnAdditionalSettingsChanged(string value) => Refresh();
 
+    /// <summary>Like a field's error, a problem said under the text goes once the text is edited.</summary>
+    partial void OnRawTextChanged(string value) => HiddenFieldErrors = null;
+
     partial void OnIsRawModeChanged(bool value)
     {
+        HiddenFieldErrors = null;
         if (_updating)
         {
             return;
@@ -348,7 +413,6 @@ public sealed partial class ConnectionEditorViewModel : ObservableObject
             .Select(v => $"{v.Key}={v.Value}")) + "\n" + AdditionalSettings.Trim();
         Fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
         Description = Format.Describe(values);
-        OnPropertyChanged(nameof(VisibleSecrets));
         OnPropertyChanged(nameof(HasVisibleSecret));
     }
 

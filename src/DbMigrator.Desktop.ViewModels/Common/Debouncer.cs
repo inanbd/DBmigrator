@@ -15,15 +15,18 @@ public sealed class Debouncer(TimeProvider time, TimeSpan delay)
     /// <returns>True when this call's result was applied.</returns>
     public async Task<bool> RunAsync<T>(Func<CancellationToken, Task<T>> work, Action<T> apply)
     {
+        // Everything up to the wait happens before the first await: a call that yielded here could
+        // replace a newer call's token source, or start its wait after the clock had moved on.
         var generation = ++_generation;
-        if (_pending is { } previous)
+        var pending = new CancellationTokenSource();
+        var previous = _pending;
+        _pending = pending;
+        if (previous is not null)
         {
-            await previous.CancelAsync();
+            previous.Cancel();
             previous.Dispose();
         }
 
-        var pending = new CancellationTokenSource();
-        _pending = pending;
         try
         {
             if (delay > TimeSpan.Zero)

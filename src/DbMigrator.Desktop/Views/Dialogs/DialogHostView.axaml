@@ -4,30 +4,36 @@
              x:Class="DbMigrator.Desktop.Views.Dialogs.DialogHostView"
              x:DataType="vm:DialogHostViewModel">
   <Border Name="Backdrop" IsVisible="{Binding IsOpen}" Background="{DynamicResource OverlayBrush}">
-    <ContentControl Name="DialogContent" Content="{Binding Current}" HorizontalAlignment="Center" VerticalAlignment="Center">
+    <!-- A dialog is never taller than the window: its title and buttons stay in view, and the text between them scrolls. -->
+    <ContentControl Name="DialogContent" Content="{Binding Current}" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24">
       <ContentControl.DataTemplates>
         <DataTemplate DataType="vm:ConfirmDialogViewModel">
           <Border Classes="dialog">
-            <StackPanel Spacing="12">
-              <TextBlock Name="DialogTitle" Classes="h2" Text="{Binding Title}" TextWrapping="Wrap" />
-              <TextBlock Name="DialogMessage" Text="{Binding Message}" TextWrapping="Wrap" />
-              <ItemsControl Name="DialogBullets" ItemsSource="{Binding Bullets}" IsVisible="{Binding HasBullets}">
-                <ItemsControl.ItemTemplate>
-                  <DataTemplate x:DataType="x:String">
-                    <DockPanel Margin="0,2">
-                      <TextBlock DockPanel.Dock="Left" Text="•" Margin="0,0,8,0" />
-                      <TextBlock Text="{Binding}" TextWrapping="Wrap" />
-                    </DockPanel>
-                  </DataTemplate>
-                </ItemsControl.ItemTemplate>
-              </ItemsControl>
-              <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,8,0,0">
+            <DockPanel>
+              <TextBlock DockPanel.Dock="Top" Name="DialogTitle" Classes="h2" Text="{Binding Title}" TextWrapping="Wrap" Margin="0,0,0,12" />
+              <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,20,0,0">
                 <!-- The safe answer is the default for Enter and Esc. -->
                 <Button Name="DialogCancel" Content="{Binding CancelText}" Command="{Binding CancelCommand}" IsDefault="True" IsCancel="True" />
                 <Button Name="DialogConfirm" Content="{Binding ConfirmText}" Command="{Binding ConfirmCommand}"
                         Classes.danger="{Binding IsDestructive}" Classes.accent="{Binding !IsDestructive}" />
               </StackPanel>
-            </StackPanel>
+              <ScrollViewer Name="DialogBody" HorizontalScrollBarVisibility="Disabled">
+                <!-- Clear of the scroll bar, which is drawn over the content. -->
+                <StackPanel Spacing="12" Margin="0,0,14,0">
+                  <TextBlock Name="DialogMessage" Text="{Binding Message}" TextWrapping="Wrap" />
+                  <ItemsControl Name="DialogBullets" ItemsSource="{Binding Bullets}" IsVisible="{Binding HasBullets}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="x:String">
+                        <DockPanel Margin="0,2">
+                          <TextBlock DockPanel.Dock="Left" Text="•" Margin="0,0,8,0" />
+                          <TextBlock Text="{Binding}" TextWrapping="Wrap" />
+                        </DockPanel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </ScrollViewer>
+            </DockPanel>
           </Border>
         </DataTemplate>
         <DataTemplate DataType="vm:PromptDialogViewModel">
@@ -45,14 +51,20 @@
         </DataTemplate>
         <DataTemplate DataType="vm:ErrorDialogViewModel">
           <Border Classes="dialog">
-            <StackPanel Spacing="12">
-              <TextBlock Name="DialogTitle" Classes="h2" Text="{Binding Title}" />
-              <SelectableTextBlock Text="{Binding Message}" TextWrapping="Wrap" />
-              <Expander Header="Details" IsVisible="{Binding HasDetails}">
-                <SelectableTextBlock Text="{Binding Details}" Classes="mono" TextWrapping="Wrap" />
-              </Expander>
-              <Button Name="DialogClose" Content="Close" HorizontalAlignment="Right" Command="{Binding CloseCommand}" IsDefault="True" IsCancel="True" />
-            </StackPanel>
+            <DockPanel>
+              <TextBlock DockPanel.Dock="Top" Name="DialogTitle" Classes="h2" Text="{Binding Title}" TextWrapping="Wrap" Margin="0,0,0,12" />
+              <Button DockPanel.Dock="Bottom" Name="DialogClose" Content="Close" HorizontalAlignment="Right" Margin="0,12,0,0"
+                      Command="{Binding CloseCommand}" IsDefault="True" IsCancel="True" />
+              <ScrollViewer Name="DialogBody" HorizontalScrollBarVisibility="Disabled">
+                <!-- Clear of the scroll bar, which is drawn over the content. -->
+                <StackPanel Spacing="12" Margin="0,0,14,0">
+                  <SelectableTextBlock Text="{Binding Message}" TextWrapping="Wrap" />
+                  <Expander Header="Details" IsVisible="{Binding HasDetails}" HorizontalAlignment="Stretch">
+                    <SelectableTextBlock Text="{Binding Details}" Classes="mono" TextWrapping="Wrap" />
+                  </Expander>
+                </StackPanel>
+              </ScrollViewer>
+            </DockPanel>
           </Border>
         </DataTemplate>
       </ContentControl.DataTemplates>

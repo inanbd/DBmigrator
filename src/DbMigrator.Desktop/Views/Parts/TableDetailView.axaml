@@ -13,26 +13,43 @@
     <Expander DockPanel.Dock="Bottom" Header="DDL" Margin="0,8,0,0" HorizontalAlignment="Stretch">
       <TextBox Name="Ddl" Text="{Binding Ddl}" IsReadOnly="True" Classes="mono" TextWrapping="NoWrap" AcceptsReturn="True" MaxHeight="260" />
     </Expander>
-    <StackPanel DockPanel.Dock="Right" Width="320" Spacing="4" Margin="12,0,0,0">
-      <TextBlock Text="Primary key" Classes="label" />
-      <TextBlock Text="{Binding PrimaryKeyText}" Classes="mono" TextWrapping="Wrap" />
-      <TextBlock Text="Indexes" Classes="label" Margin="0,8,0,0" />
-      <ItemsControl ItemsSource="{Binding Indexes}">
-        <ItemsControl.ItemTemplate>
-          <DataTemplate x:DataType="x:String">
-            <TextBlock Text="{Binding}" Classes="mono" TextWrapping="Wrap" />
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
-      <TextBlock Text="Foreign keys" Classes="label" Margin="0,8,0,0" />
-      <ItemsControl ItemsSource="{Binding ForeignKeys}">
-        <ItemsControl.ItemTemplate>
-          <DataTemplate x:DataType="x:String">
-            <TextBlock Text="{Binding}" Classes="mono" TextWrapping="Wrap" />
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
-    </StackPanel>
+    <!-- Keys, indexes and table-level issues can outgrow the pane, so they scroll. -->
+    <ScrollViewer DockPanel.Dock="Right" Width="320" Margin="12,0,0,0" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Spacing="4" Margin="0,0,8,0">
+        <TextBlock Text="Primary key" Classes="label" />
+        <TextBlock Text="{Binding PrimaryKeyText}" Classes="mono" TextWrapping="Wrap" />
+        <TextBlock Text="Indexes" Classes="label" Margin="0,8,0,0" />
+        <ItemsControl ItemsSource="{Binding Indexes}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="x:String">
+              <TextBlock Text="{Binding}" Classes="mono" TextWrapping="Wrap" />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock Text="Foreign keys" Classes="label" Margin="0,8,0,0" />
+        <ItemsControl ItemsSource="{Binding ForeignKeys}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="x:String">
+              <TextBlock Text="{Binding}" Classes="mono" TextWrapping="Wrap" />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <!-- Issues about the table itself, its keys and indexes; column issues are in the grid. -->
+        <TextBlock Text="Issues" Classes="label" Margin="0,8,0,0" IsVisible="{Binding HasTableIssues}" />
+        <ItemsControl Name="TableIssues" ItemsSource="{Binding TableIssues}" IsVisible="{Binding HasTableIssues}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:IssueRowViewModel">
+              <Border Classes="banner" Classes.warning="{Binding IsWarning}" Classes.error="{Binding IsError}" Margin="0,0,0,6">
+                <StackPanel>
+                  <TextBlock Text="{Binding Severity}" Classes="label" />
+                  <TextBlock Text="{Binding Message}" TextWrapping="Wrap" />
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </ScrollViewer>
     <DataGrid Name="ColumnMappings" ItemsSource="{Binding Columns}" AutoGenerateColumns="False" IsReadOnly="True">
       <DataGrid.Columns>
         <DataGridTextColumn Header="Source column" Binding="{Binding SourceColumn, Mode=OneWay}" x:DataType="vm:ColumnMappingRowViewModel" />

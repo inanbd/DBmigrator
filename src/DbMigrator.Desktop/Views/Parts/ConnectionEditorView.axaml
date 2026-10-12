@@ -77,12 +77,13 @@
       <TextBlock Classes="help" Text="Passwords are never shown here; type them in the boxes below. A password pasted into the text moves into its box." />
       <TextBox Name="RawText" Text="{Binding RawText}" Classes="mono" TextWrapping="Wrap" MinHeight="64" AutomationProperties.Name="Connection string" />
       <TextBlock Text="{Binding RawError}" Classes="error" IsVisible="{Binding HasRawError}" />
-      <ItemsControl ItemsSource="{Binding VisibleSecrets}" />
+      <TextBlock Name="HiddenFieldErrors" Text="{Binding HiddenFieldErrors}" Classes="error" IsVisible="{Binding HasHiddenFieldErrors}" />
+      <ItemsControl Name="RawSecrets" ItemsSource="{Binding Secrets}" />
     </StackPanel>
 
     <TextBlock Name="EditorNotice" Text="{Binding Notice}" Classes="help" IsVisible="{Binding HasNotice}" />
 
-    <Expander Header="Advanced" IsVisible="{Binding !IsRawMode}" HorizontalAlignment="Stretch">
+    <Expander Name="Advanced" Header="Advanced" IsVisible="{Binding !IsRawMode}" IsExpanded="{Binding IsAdvancedExpanded, Mode=TwoWay}" HorizontalAlignment="Stretch">
       <StackPanel>
         <ItemsControl ItemsSource="{Binding AdvancedFields}" />
         <TextBlock Text="Additional settings" Classes="label" />

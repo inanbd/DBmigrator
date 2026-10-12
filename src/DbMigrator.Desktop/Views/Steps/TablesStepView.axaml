@@ -7,22 +7,23 @@
     <DockPanel>
       <!-- Summary and toolbar -->
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
-        <StackPanel Orientation="Horizontal" Spacing="12">
-          <TextBlock Name="SelectionSummary" Text="{Binding SummaryText}" VerticalAlignment="Center" />
+        <WrapPanel ItemSpacing="12">
+          <TextBlock Name="SelectionSummary" Text="{Binding SummaryText}" TextWrapping="Wrap" VerticalAlignment="Center" />
           <Button Name="Reread" Classes="link" Content="Re-read catalog" Command="{Binding RereadCatalogCommand}" VerticalAlignment="Center" />
           <Button Content="Cancel" Command="{Binding RereadCatalogCancelCommand}" IsVisible="{Binding RereadCatalogCommand.IsRunning}" />
-        </StackPanel>
+        </WrapPanel>
         <TextBlock Name="RereadNotice" Text="{Binding RereadNotice}" Classes="help"
                    IsVisible="{Binding RereadNotice, Converter={x:Static ObjectConverters.IsNotNull}}" />
-        <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="8">
-          <TextBox Name="TableFilter" Text="{Binding FilterText}" PlaceholderText="Filter: Orders, sales.*, Order*" AutomationProperties.Name="Filter tables" />
-          <ComboBox Grid.Column="1" Name="SchemaFilter" ItemsSource="{Binding Schemas}" SelectedItem="{Binding SchemaFilter}" MinWidth="140"
+        <!-- The filter has a row of its own, so it keeps its width however narrow the window; the rest wraps. -->
+        <TextBox Name="TableFilter" Text="{Binding FilterText}" PlaceholderText="Filter: Orders, sales.*, Order*" AutomationProperties.Name="Filter tables" />
+        <WrapPanel ItemSpacing="8" LineSpacing="8">
+          <ComboBox Name="SchemaFilter" ItemsSource="{Binding Schemas}" SelectedItem="{Binding SchemaFilter}" MinWidth="140"
                     AutomationProperties.Name="Schema" />
-          <ComboBox Grid.Column="2" Name="ShowFilter" ItemsSource="{Binding ShowOptions}" SelectedItem="{Binding ShowFilter}" MinWidth="140"
+          <ComboBox Name="ShowFilter" ItemsSource="{Binding ShowOptions}" SelectedItem="{Binding ShowFilter}" MinWidth="140"
                     DisplayMemberBinding="{Binding Label, x:DataType=vm:ShowOption, Mode=OneWay}" AutomationProperties.Name="Show" />
-          <Button Grid.Column="3" Name="SelectShown" Content="Select shown" Command="{Binding SelectShownCommand}" />
-          <Button Grid.Column="4" Name="ClearShown" Content="Clear shown" Command="{Binding ClearShownCommand}" />
-        </Grid>
+          <Button Name="SelectShown" Content="Select shown" Command="{Binding SelectShownCommand}" />
+          <Button Name="ClearShown" Content="Clear shown" Command="{Binding ClearShownCommand}" />
+        </WrapPanel>
       </StackPanel>
 
       <!-- Foreign keys into tables left out -->

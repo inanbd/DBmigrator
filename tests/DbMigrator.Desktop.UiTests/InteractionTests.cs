@@ -1,6 +1,7 @@
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -61,6 +62,60 @@ public sealed class ConnectionFormTests(AvaloniaFixture fixture)
         Assert.Contains("sql01", raw.Text, StringComparison.Ordinal);
         Assert.DoesNotContain("hunter2", raw.Text, StringComparison.Ordinal);
         ui.Screenshot("20-connection-string-mode");
+        ui.Window.Close();
+    });
+
+    [Fact]
+    public Task The_password_under_the_connection_string_takes_one_key_after_another() => fixture.RunAsync(async () =>
+    {
+        var ui = await OpenSqlServerFormAsync(TestServices.Create(null, new SqlServerProvider()));
+        ui.Click(ui.Find<ToggleSwitch>("RawMode"));
+        var password = ui.ByLabel<TextBox>("Password");
+        password.Focus();
+        UiDriver.Settle();
+
+        // Key by key, as a person types: each key re-validates the form.
+        foreach (var key in "hunter2")
+        {
+            ui.Window.KeyTextInput(key.ToString());
+            UiDriver.Settle();
+        }
+
+        Assert.Equal("hunter2", WizardDriver.Field(ui.Shell.Source.Editor!, "Password").Value);
+        Assert.Same(password, ui.ByLabel<TextBox>("Password"));
+        Assert.True(password.IsFocused);
+        ui.Window.Close();
+    });
+
+    [Fact]
+    public Task A_missing_database_in_the_connection_string_is_said_where_it_can_be_seen() => fixture.RunAsync(async () =>
+    {
+        var ui = await OpenSqlServerFormAsync(TestServices.Create(null, new SqlServerProvider()));
+        ui.Click(ui.Find<ToggleSwitch>("RawMode"));
+        ui.Type(ui.Find<TextBox>("RawText"), "Data Source=sql01;User ID=sa");
+
+        ui.Click(ui.Find<Button>("ConnectButton"));
+
+        Assert.Equal("Database is required.", ui.Find<TextBlock>("HiddenFieldErrors").Text);
+        Assert.Equal("Check the connection settings: Database is required.", ui.Find<SelectableTextBlock>("ConnectionError").Text);
+        ui.Screenshot("22-connection-string-problem");
+        ui.Window.Close();
+    });
+
+    [Fact]
+    public Task A_problem_inside_advanced_opens_it() => fixture.RunAsync(async () =>
+    {
+        var ui = await OpenSqlServerFormAsync(TestServices.Create(null, new SqlServerProvider()));
+        var editor = ui.Shell.Source.Editor!;
+        WizardDriver.Fill(editor, "sql01", "shop", "sa", "hunter2");
+        WizardDriver.Field(editor, "Connect Timeout").Value = "5000";
+        UiDriver.Settle();
+        Assert.False(ui.Find<Expander>("Advanced").IsExpanded);
+
+        ui.Click(ui.Find<Button>("ConnectButton"));
+
+        Assert.True(ui.Find<Expander>("Advanced").IsExpanded);
+        Assert.Contains("between 1 and 600", ui.Find<SelectableTextBlock>("ConnectionError").Text, StringComparison.Ordinal);
         ui.Window.Close();
     });
 

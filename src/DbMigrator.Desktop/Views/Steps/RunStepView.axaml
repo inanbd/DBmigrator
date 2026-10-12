@@ -95,16 +95,16 @@
           <DataGridTextColumn Header="Status" Binding="{Binding StatusText, Mode=OneWay}" x:DataType="vm:TableProgressRowViewModel" />
           <DataGridTextColumn Header="#" Binding="{Binding Index, Mode=OneWay}" x:DataType="vm:TableProgressRowViewModel" />
           <DataGridTextColumn Header="Table" Binding="{Binding Name, Mode=OneWay}" x:DataType="vm:TableProgressRowViewModel" Width="2*" MinWidth="140" />
-          <DataGridTextColumn Header="Rows copied / est." Binding="{Binding RowsText, Mode=OneWay}" x:DataType="vm:TableProgressRowViewModel" />
-          <DataGridTemplateColumn Header="Progress" Width="140" x:DataType="vm:TableProgressRowViewModel">
+          <DataGridTextColumn Header="Rows copied / est." Binding="{Binding RowsText, Mode=OneWay}" SortMemberPath="RowsCopied" x:DataType="vm:TableProgressRowViewModel" />
+          <DataGridTemplateColumn Header="Progress" Width="140" SortMemberPath="Percent" x:DataType="vm:TableProgressRowViewModel">
             <DataGridTemplateColumn.CellTemplate>
               <DataTemplate x:DataType="vm:TableProgressRowViewModel">
                 <ProgressBar Minimum="0" Maximum="100" Value="{Binding Percent, Mode=OneWay}" IsIndeterminate="{Binding IsIndeterminate}" Margin="8,0" />
               </DataTemplate>
             </DataGridTemplateColumn.CellTemplate>
           </DataGridTemplateColumn>
-          <DataGridTextColumn Header="Rate" Binding="{Binding RateText, Mode=OneWay}" x:DataType="vm:TableProgressRowViewModel" />
-          <DataGridTextColumn Header="Elapsed" Binding="{Binding ElapsedText, Mode=OneWay}" x:DataType="vm:TableProgressRowViewModel" />
+          <DataGridTextColumn Header="Rate" Binding="{Binding RateText, Mode=OneWay}" SortMemberPath="SortRate" x:DataType="vm:TableProgressRowViewModel" />
+          <DataGridTextColumn Header="Elapsed" Binding="{Binding ElapsedText, Mode=OneWay}" SortMemberPath="Elapsed" x:DataType="vm:TableProgressRowViewModel" />
           <DataGridTextColumn Header="Message" Binding="{Binding Message, Mode=OneWay}" x:DataType="vm:TableProgressRowViewModel" Width="3*" MinWidth="140" />
         </DataGrid.Columns>
       </DataGrid>

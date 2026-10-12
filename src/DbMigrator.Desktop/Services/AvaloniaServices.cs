@@ -32,10 +32,10 @@ internal sealed class AvaloniaFileService(Func<TopLevel?> topLevel) : IFileServi
 
         using (file)
         {
-            // The type picked in the dialog decides the format; failing that, the extension typed.
-            var type = request.Types.FirstOrDefault(t => t.Name == result.SelectedFileType?.Name)
-                ?? request.Types.FirstOrDefault(t => file.Name.EndsWith(t.Extension, StringComparison.OrdinalIgnoreCase))
-                ?? request.Types[0];
+            // The name's extension decides the format, so the content always matches how the file opens:
+            // some dialogs keep a typed "report.json" under the Markdown filter, or keep "report.md"
+            // when the filter changes to JSON. The filter decides only for a name with neither extension.
+            var type = SaveTypes.Choose(request.Types, file.Name, result.SelectedFileType?.Name);
             await using (var stream = await file.OpenWriteAsync())
             {
                 await write(type, stream, cancellationToken);
@@ -60,6 +60,15 @@ internal sealed class AvaloniaFileService(Func<TopLevel?> topLevel) : IFileServi
 
     private IStorageProvider Storage() =>
         topLevel()?.StorageProvider ?? throw new InvalidOperationException("The window is not open.");
+}
+
+/// <summary>Which of the offered types a saved file is written as.</summary>
+internal static class SaveTypes
+{
+    public static FileTypeChoice Choose(IReadOnlyList<FileTypeChoice> types, string fileName, string? selectedType) =>
+        types.FirstOrDefault(t => fileName.EndsWith(t.Extension, StringComparison.OrdinalIgnoreCase))
+        ?? types.FirstOrDefault(t => t.Name == selectedType)
+        ?? types[0];
 }
 
 internal sealed class AvaloniaClipboardService(Func<TopLevel?> topLevel) : IClipboardService
